@@ -29,7 +29,7 @@ App de gestão de fazendas de recria e engorda da ISM Consultoria Pecuária. Fun
 3. No menu, abra **SQL Editor > New query**. Cole e rode (**Run**), um de cada vez e nesta ordem:
    1. `supabase/migrations/001_estrutura.sql`
    2. `supabase/migrations/002_regras_de_acesso.sql`
-   3. `supabase/carga/barramas.sql`, que é um arquivo grande (2,5 MB). Se o editor reclamar do tamanho, veja a seção "Arquivo grande demais" mais abaixo.
+   3. As 8 partes da carga da Barramas, em ordem: `supabase/carga/partes/barramas_01.sql` até `barramas_08.sql`. O arquivo único `barramas.sql` tem o mesmo conteúdo, para quem usa o terminal.
 4. Em **Authentication > Sign In / Providers > Email**:
    - Deixe **Email** ligado.
    - Desligue **Confirm email**: os logins usam e-mails internos, que ninguém vai abrir.
