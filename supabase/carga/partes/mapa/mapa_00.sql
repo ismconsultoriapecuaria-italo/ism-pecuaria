@@ -1,0 +1,3 @@
+-- Mapa da Barramas · comece por esta (use no lugar da barramas_02 se ela der 'Failed to fetch')
+insert into public.painel (cliente_id, chave, dados) values ('b0000000-0000-4000-8000-000000000001', 'mapa', '{"titulo": "Mapa de divisões · outubro/2025", "alt": "Mapa de divisões da Fazenda Barramas com módulos M1 a M8, pastos P1 a P31, rio, corredores e áreas de preservação", "info": [["Município", "Senador La Rocque – MA"], ["Proprietário", "Wilmington Viana"], ["Coordenadas", "5°18′37,45″ S · 47°04′25,62″ O"], ["Elipsoide", "GRS 80"]], "img": ""}'::jsonb)
+  on conflict (cliente_id, chave) do update set dados = excluded.dados;
