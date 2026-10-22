@@ -149,7 +149,7 @@ python3 tests/servidor_simulado.py 8790 e2e &   # imita o Supabase
 python3 tests/testar_app.py e2e                 # abre o app no navegador e testa 36 situações
 ```
 
-Também dá para testar só as regras de acesso: são 54 casos, perfil por perfil, em `tests/testar_acesso.py`.
+Também dá para testar só as regras de acesso: são 53 casos, perfil por perfil, em `tests/testar_acesso.py`.
 
 ## Custos
 

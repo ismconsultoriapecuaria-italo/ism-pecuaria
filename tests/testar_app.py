@@ -58,7 +58,7 @@ with sync_playwright() as pw:
     ok(p.evaluate("A.filter(a=>a.venda&&a.venda.valor>0).length") == 130, 'Italo vê o valor das 130 vendas')
     ok(p.evaluate("C.pastos.length") == 40 and p.evaluate("C.cocho.length") == 4, 'pastos e cocho carregados')
     ok(p.evaluate("R.length") == 64, 'romaneios carregados')
-    ok('Barramas' in p.evaluate("document.querySelector('[data-marca-horiz]').innerHTML"), 'logo da Barramas no topo')
+    ok('Barramas' in p.evaluate("document.querySelector('.brand').innerHTML"), 'logo da Barramas no topo')
     ok(p.evaluate("!!document.querySelector('#mapimg').src.startsWith('data:image')"), 'mapa da fazenda carregado')
     ok(p.evaluate("document.querySelector('#f-det').innerText.includes('Receitas')"), 'painel financeiro desenhado')
     # lança no caixa
