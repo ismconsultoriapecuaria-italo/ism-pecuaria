@@ -1,0 +1,21 @@
+# Roda os testes das regras de acesso num Postgres a cada envio.
+name: Testes
+on: [push, pull_request]
+jobs:
+  regras-de-acesso:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: teste }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env: { PGHOST: localhost, PGUSER: postgres, PGPASSWORD: teste, PGPORT: 5432 }
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          psql -c "create database ism"
+          for f in tests/supabase_simulado.sql supabase/migrations/001_estrutura.sql supabase/migrations/002_regras_de_acesso.sql tests/dados_teste.sql; do
+            psql -d ism -v ON_ERROR_STOP=1 -q -f $f
+          done
+      - run: python3 tests/testar_acesso.py localhost 5432

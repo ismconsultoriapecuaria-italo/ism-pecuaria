@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ISM Pecuária</title>
+<meta name="theme-color" content="#1F3D2B">
+<meta name="description" content="Gestão de fazendas de recria e engorda · ISM Consultoria Pecuária">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icone-192.png">
+<link rel="apple-touch-icon" href="icons/icone-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+/* App de campo: faixa verde-pasto com abas no topo, coluna única de 1040px; no celular a navegação desce para a base. Brinco amarelo é a assinatura. */
+:root{
+ --paper:#edf0e8;--card:#fbfcf7;--ink:#16231a;--mut:#5c6b5f;--line:#d3dacb;--soft:#e4eadc;
+ --band:#1F3D2B;--band-ink:#f3f7ee;--band-mut:#a9c3a6;--acc:#1f5236;--acc-ink:#ffffff;
+ --tag:#e6cd6a;--tag-ink:#1d1b13;--tag-edge:#c4a843;
+ --pos:#2a7a3b;--neg:#b5432a;--inv:#b07a0b;--info:#24639e;
+ --scale:#10241a;--scale-ink:#d6f0c0;--warn-bg:#3b150c;--warn-ink:#ffcdbd;
+ --f-d:"Archivo","Arial Narrow",system-ui,sans-serif;--f-m:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+ --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+ --paper:#0e1410;--card:#161f19;--ink:#e3eadf;--mut:#94a397;--line:#2a362d;--soft:#1f2b22;
+ --band:#11301f;--band-ink:#eef4e8;--band-mut:#8fae8c;--acc:#8cc271;--acc-ink:#0c1a0f;
+ --tag-edge:#b39436;--pos:#7cc26b;--neg:#ee8063;--inv:#e5ad3c;--info:#74ade8;
+ --scale:#07110b;color-scheme:dark}}
+:root[data-theme="dark"]{
+ --paper:#0e1410;--card:#161f19;--ink:#e3eadf;--mut:#94a397;--line:#2a362d;--soft:#1f2b22;
+ --band:#11301f;--band-ink:#eef4e8;--band-mut:#8fae8c;--acc:#8cc271;--acc-ink:#0c1a0f;
+ --tag-edge:#b39436;--pos:#7cc26b;--neg:#ee8063;--inv:#e5ad3c;--info:#74ade8;
+ --scale:#07110b;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--paper);color:var(--ink);font:15px/1.5 var(--f-d);font-variant-numeric:tabular-nums}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--band)}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--tag);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* faixa */
+.band{background:var(--band);color:var(--band-ink)}
+.top{display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px 20px;padding-block:20px 0}
+.eyebrow{margin:0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--mut)}
+.band .eyebrow{color:var(--band-mut)}
+h1.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.brand{color:var(--band-ink);min-width:0}
+.brandlogo{display:block;height:clamp(54px,12vw,78px);width:auto;max-width:100%}
+.seal{display:block;width:100%;height:auto}
+h1{margin:2px 0 0;font:800 clamp(30px,7vw,46px)/.95 var(--f-d);font-stretch:68%;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance}
+.own{margin:8px 0 0;font-size:13px;color:var(--band-mut)}
+.ism{display:flex;flex-direction:column;align-items:flex-end;gap:4px;max-width:min(46vw,320px)}
+.ism span{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--band-mut)}
+.ism img{display:block;height:60px;width:auto}
+.nav{grid-column:1/-1;display:flex;gap:2px;margin-top:6px;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav button{flex:none;display:flex;align-items:center;gap:8px;border:0;background:transparent;color:var(--band-mut);padding:11px 14px 12px;border-radius:var(--r) var(--r) 0 0;font-weight:700;font-stretch:85%;font-size:15px;letter-spacing:.02em;text-transform:uppercase;cursor:pointer}
+.nav button svg{width:18px;height:18px;flex:none}
+.nav button:hover{color:var(--band-ink)}
+.nav button[aria-current="page"]{background:var(--paper);color:var(--ink)}
+@media (max-width:759px){
+ .top{padding-block:16px}
+ .ism img{height:46px}
+ .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;margin:0;display:grid;grid-template-columns:repeat(var(--nav-n,6),minmax(0,1fr));gap:2px;overflow:visible;background:var(--card);border-top:1px solid var(--line);
+  padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+ .nav button{flex-direction:column;gap:2px;padding:6px 0;border-radius:8px;font-size:11px;letter-spacing:0;text-transform:none;font-stretch:72%;color:var(--mut);min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+ .nav button svg{width:22px;height:22px}
+ .nav button[aria-current="page"]{background:var(--soft);color:var(--acc)}
+ main{padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+}
+main{padding-block:20px 40px}
+.view{display:flex;flex-direction:column;gap:16px}
+
+/* controles comuns */
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.period{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)}
+select,input{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px;width:100%;color:var(--ink)}
+.period select{width:auto;min-height:38px;padding:6px 10px}
+.seg{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.seg::-webkit-scrollbar{display:none}
+.seg button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
+.seg button.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0}
+.ph{display:flex;flex-direction:column;gap:2px}
+.ph h2,.ct{margin:0;font:800 24px/1.05 var(--f-d);font-stretch:72%;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance}
+.ct{font-size:20px}
+h3.sub{margin:0 0 10px;font:700 14px/1.2 var(--f-d);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.mut{color:var(--mut);font-size:13px}
+.hint{margin:4px 0 0;color:var(--mut);font-size:14px;max-width:60ch}
+.note{border-left:3px solid var(--tag);background:var(--card);padding:10px 14px;border-radius:0 8px 8px 0;font-size:13px;color:var(--mut);max-width:80ch}
+.note b{color:var(--ink)}
+.pos{color:var(--pos)}.neg{color:var(--neg)}.inv{color:var(--inv)}.info{color:var(--info)}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:700px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi small{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);font-weight:600}
+.kpi b{font:700 clamp(20px,4.6vw,27px)/1.1 var(--f-d);font-stretch:80%;overflow-wrap:anywhere}
+.kpi i{font-style:normal;font-size:12px;color:var(--mut)}
+.kpi.hi{background:var(--band);border-color:var(--band);color:var(--band-ink)}
+.kpi.hi small,.kpi.hi i{color:var(--band-mut)}
+
+/* gráfico */
+.tw{overflow-x:auto;min-width:0}
+.chart svg{display:block;width:100%;min-width:540px;height:auto}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--mut);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+/* árvore de custos */
+details.cc{border-top:1px solid var(--line)}
+details.cc:first-of-type{border-top:0}
+details.cc summary{cursor:pointer;list-style:none;padding:10px 0;display:block}
+details.cc summary::-webkit-details-marker{display:none}
+.ln{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.ln span:first-child{font-weight:600;min-width:0}
+.ln span:first-child::before{content:"+";display:inline-block;width:16px;color:var(--mut);font-family:var(--f-m)}
+details[open]>summary .ln span:first-child::before{content:"−"}
+.meter{height:6px;border-radius:3px;background:var(--soft);margin:6px 0 0 16px}
+.meter i{display:block;height:6px;border-radius:3px}
+.grp{margin:4px 0 10px 16px;font-size:14px}
+.grp>.ln{padding:4px 0;border-bottom:1px dashed var(--line)}
+.grp>.ln b{font-weight:600}
+.it{display:flex;justify-content:space-between;gap:10px;padding:3px 0 3px 14px;font-size:13px;color:var(--mut)}
+
+/* tabelas */
+table{border-collapse:collapse;width:100%}
+.pt{border-collapse:separate;border-spacing:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--card);font-size:14px}
+.pt th{background:var(--band);color:var(--band-ink);padding:10px;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;text-align:right;white-space:nowrap}
+.pt td{padding:9px 10px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+.pt th:first-child,.pt td:first-child{text-align:left;position:sticky;left:0}
+.pt td:first-child{background:var(--card);font-weight:500}
+.pt tr.sm td{background:var(--soft);font-weight:700}
+.pt td.av{font-weight:700}
+.pt tr.sm td.av{background:var(--acc);color:var(--acc-ink)}
+.pt tr.rd td{color:var(--neg);font-weight:700}
+.pt tr.bl td{color:var(--info)}
+
+/* manejo */
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:14px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+label,.lb{font-size:13px;color:var(--mut);font-weight:500}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:14px 0 0;padding:10px 14px 12px}
+legend{font-size:13px;color:var(--mut);padding:0 4px}
+.yn{display:flex;gap:6px}
+.chip{position:relative;display:inline-flex}
+.chip input{position:absolute;opacity:0;width:1px;height:1px;min-height:0}
+.chip span{border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:14px;cursor:pointer;background:var(--card);user-select:none}
+.chip input:checked+span{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.chip input:focus-visible+span{outline:2px solid var(--tag);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:10px 20px;border:1px solid var(--acc);border-radius:8px;background:var(--acc);color:var(--acc-ink);font-weight:700;font-stretch:88%;font-size:16px;letter-spacing:.02em;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.sm{min-height:38px;padding:6px 14px;font-size:14px}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+form .btn{margin-top:16px}
+.run{display:flex;flex-direction:column;gap:12px}
+.runinfo{margin:0;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--mut)}
+.runinfo b{color:var(--ink)}
+.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:10px}
+input.big{font:600 30px/1 var(--f-m);min-height:62px;padding:10px 14px}
+.scale{background:var(--scale);color:var(--scale-ink);font:500 15px/1.6 var(--f-m);border-radius:8px;padding:12px 14px;white-space:pre-line;min-height:52px;border:2px solid transparent}
+.scale:empty::before{content:attr(data-ph);opacity:.55}
+.scale.warn{background:var(--warn-bg);color:var(--warn-ink);border-color:var(--neg)}
+
+/* brinco */
+.tag{display:inline-flex;align-items:center;gap:5px;background:var(--tag);color:var(--tag-ink);border:1px solid var(--tag-edge);border-radius:6px 6px 11px 11px;padding:2px 9px 2px 7px;font:600 14px/1.3 var(--f-m)}
+.tag::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--card);box-shadow:inset 0 0 0 1px var(--tag-edge)}
+.tagart{display:block;width:100%;height:auto;filter:drop-shadow(0 4px 8px rgb(0 0 0 / .22))}
+.tagent{align-self:center;width:min(210px,58vw)}
+.scalerow{display:grid;grid-template-columns:clamp(84px,24vw,120px) minmax(0,1fr);gap:12px;align-items:center}
+.tagold{align-self:center;display:flex;flex-direction:column;align-items:center;background:var(--tag);color:var(--tag-ink);border:2px solid var(--tag-edge);border-radius:18px 18px 46px 46px;padding:12px 30px 22px;min-width:180px}
+.tagbig::before{content:"";width:16px;height:16px;border-radius:50%;background:var(--card);box-shadow:inset 0 0 0 2px var(--tag-edge);margin-bottom:6px}
+.tagbig small{font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:700}
+.tagbig b{font:600 52px/1 var(--f-m)}
+
+/* rebanho */
+.flt{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.tools .act{display:flex;gap:8px;flex-wrap:wrap}
+.list{display:flex;flex-direction:column}
+details.an{border-top:1px solid var(--line)}
+details.an:first-child{border-top:0}
+details.an>summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:11px 0}
+details.an>summary::-webkit-details-marker{display:none}
+.an .who{font-size:14px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.an .kg{font:600 15px var(--f-m);text-align:right}
+.pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid currentColor;margin-left:8px}
+.pill.Ativo{color:var(--pos)}.pill.Vendido{color:var(--info)}.pill.Morto{color:var(--neg)}
+.body{padding:0 0 14px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.ft td{padding:6px 8px;border-bottom:1px solid var(--line);font-size:14px}
+.ft td:nth-child(n+3){text-align:right;font-family:var(--f-m);font-size:13px}
+.ft tr.h td{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);font-family:var(--f-d)}
+.facts{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--mut)}
+.facts b{color:var(--ink);font-weight:600}
+.empty{padding:28px 18px;text-align:center;color:var(--mut)}
+.empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:4px}
+details.rm{border-top:1px solid var(--line)}
+details.rm:first-child{border-top:0}
+details.rm>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:12px 0;flex-wrap:wrap}
+details.rm>summary::-webkit-details-marker{display:none}
+.rt{font-weight:800;font-stretch:80%;text-transform:uppercase;font-size:17px}
+.rt em{font-style:normal;font-weight:600;color:var(--mut);font-stretch:100%;text-transform:none;font-size:14px;margin-left:6px}
+
+/* mapa */
+.maphd{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.zm{display:flex;gap:6px}.zm .x{min-width:44px;min-height:40px;font-size:15px;font-weight:700;color:var(--ink)}
+.mapv{overflow:auto;max-height:78vh;background:#fff;border:1px solid var(--line);border-radius:8px;-webkit-overflow-scrolling:touch}
+.mapv img{display:block;width:100%;max-width:none;height:auto}
+.lg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--mut);margin-top:10px}
+.lg i{display:inline-block;width:18px;height:10px;margin-right:6px;vertical-align:-1px;border-radius:2px}
+.l-pa{border:1.5px solid var(--ink)}.l-co{border-top:2px solid #2233cc;height:0!important}.l-ci{border-top:2px solid #f08a1c;height:0!important}.l-cu{border-top:2px solid #e02020;height:0!important}
+.l-ap{background:#2fe0f0}.l-rl{background:repeating-linear-gradient(45deg,#7fdc5a 0 3px,#c8f2b4 3px 6px)}.l-es{border-top:2px dashed var(--mut);height:0!important}
+.desc{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 16px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.desc small{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);font-weight:600}
+.desc b{font-weight:600}
+.ismf{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:14px}
+.ismf span{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.ismf img{height:44px;width:auto}.ismf img.dk{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ismf img.lt{display:none}:root:not([data-theme="light"]) .ismf img.dk{display:block}}
+:root[data-theme="dark"] .ismf img.lt{display:none}:root[data-theme="dark"] .ismf img.dk{display:block}
+/* suplementação, atividades, mapa */
+.rowl{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:4px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.rowl:first-child{border-top:0}
+.rowl .q{font:600 15px var(--f-m);text-align:right;white-space:nowrap}
+.rowl .sub2{display:block;font-size:12px;color:var(--mut)}
+.rowl .d{font:500 13px var(--f-m);color:var(--mut)}
+.x{border:1px solid var(--line);background:transparent;color:var(--mut);border-radius:8px;min-height:34px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap}
+.x.arm{border-color:var(--neg);color:var(--neg);font-weight:700}
+.pill.Limpo{color:var(--pos)}.pill.Sobrou{color:var(--inv)}
+.pill.Produção{color:var(--pos)}.pill.Saída{color:var(--inv)}
+.rowl .pill{margin-left:0}
+.inl{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto;gap:8px;align-items:end;margin-top:8px}
+.lastt{font-size:13px;color:var(--mut);min-height:20px;margin:6px 0 0}
+.lvl{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--lc);border-radius:var(--r);padding:14px 18px}
+.lvl.e{--lc:var(--acc)}.lvl.t{--lc:var(--inv)}.lvl.o{--lc:var(--info)}
+.lvl header{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.lvl h3{margin:0;font:800 19px/1.1 var(--f-d);font-stretch:72%;text-transform:uppercase;letter-spacing:.02em}
+.task{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+.task .tt{font-weight:600}
+.task.done .tt{text-decoration:line-through;color:var(--mut)}
+.task .meta{font-size:12px;color:var(--mut);display:flex;flex-wrap:wrap;gap:2px 10px}
+.task .late{color:var(--neg);font-weight:700}
+.st{border:1px solid currentColor;background:transparent;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;cursor:pointer;white-space:nowrap;min-height:30px}
+.st.s0{color:var(--mut)}.st.s1{color:var(--inv)}.st.s2{color:var(--pos)}
+.mapph{display:flex;flex-direction:column;align-items:center;gap:6px;padding:36px 18px;text-align:center;color:var(--mut);background:repeating-linear-gradient(135deg,var(--soft) 0 12px,var(--card) 12px 24px);border:1px dashed var(--line);border-radius:var(--r)}
+.mapph b{color:var(--ink);font-size:17px}
+@media (max-width:520px){.rowl{grid-template-columns:auto minmax(0,1fr) auto}.inl{grid-template-columns:1fr 1fr}.inl .btn{grid-column:1/-1}.rowl .x{grid-column:3}#fpas{grid-template-columns:1fr 1fr!important}}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:70ch}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;min-height:0;padding:0;border:0}
+label.btn{color:var(--acc-ink)}
+.fwrap{border-top:1px solid var(--line);padding-top:14px;margin-top:4px;min-width:0}
+.ficha{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:6px}
+.fcol{border-collapse:separate;border-spacing:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;font:500 13px/1.25 var(--f-m);background:var(--card);width:100%}
+.fcol th{background:var(--band);color:var(--band-ink);font:700 11px var(--f-d);letter-spacing:.06em;text-transform:uppercase;padding:6px 4px}
+.fcol td{padding:3px 6px;text-align:center;border-top:1px solid var(--line)}
+.fcol td:first-child{color:var(--mut);font-size:11px;width:28%}
+.fcol tbody tr:nth-child(even) td{background:var(--soft)}
+.fcol tr.nw td{background:rgb(230 205 106 / .45)!important;font-weight:700}
+.det{margin-top:10px}.det>summary{cursor:pointer;padding:6px 0}
+.fcol tfoot td{background:var(--soft);font-weight:700;border-top:2px solid var(--band);color:var(--ink)}
+.ftot{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:10px;font-size:13px;color:var(--mut)}.ftot b{color:var(--ink)}
+.uchip{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--band-mut);margin-top:8px;justify-content:flex-end;flex-wrap:wrap}.uchip b{color:var(--band-ink)}
+.uchip button{border:1px solid var(--band-mut);background:transparent;color:var(--band-ink);border-radius:999px;padding:4px 10px;font:600 12px var(--f-d);cursor:pointer}
+.login{position:fixed;inset:0;z-index:40;background:var(--band);overflow:auto;padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+.lbox{max-width:560px;margin:0 auto;background:var(--paper);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:10px}
+.lhd{background:var(--band);color:var(--band-ink);border-radius:10px;padding:14px}.lhd .brandlogo{height:56px}
+.ulist{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.ucard{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:12px 14px;cursor:pointer;min-height:64px}
+.ucard b{font-size:17px}.ucard span{font-size:12px;color:var(--mut)}.ucard:hover{border-color:var(--acc)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--paper);padding:11px 18px;border-radius:999px;font-weight:600;font-size:14px;max-width:min(92vw,520px);text-align:center;box-shadow:0 6px 24px rgb(0 0 0 / .25)}
+@media (max-width:759px){#toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
+.foot{font-size:12px;color:var(--mut);margin:0}
+</style>
+<style>
+.ehd{display:flex;align-items:center;gap:14px}.ehd img{height:46px}.ehd span{font-weight:800;font-size:20px;letter-spacing:.02em}
+.eform{display:flex;flex-direction:column;gap:12px}.eform label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:14px}
+.eform input:not([type=checkbox]){min-height:48px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--card);font-size:17px}
+.ech{flex-direction:row!important;align-items:flex-start;gap:8px!important;font-weight:400!important}.ech input{margin-top:4px}
+.eaviso{margin:0;min-height:1.2em;font-size:14px}.eaviso.erro{color:var(--neg);font-weight:600}
+.eqr{background:#fff;border-radius:10px;padding:12px;align-self:center;width:220px}.eqr img,.eqr svg{width:100%;height:auto;display:block}
+.mono{font-family:var(--f-m);word-break:break-all}
+.nomecli{font-size:26px;font-weight:800;letter-spacing:.01em}
+.sincst{flex-basis:100%;text-align:right;font-size:11px;color:var(--band-mut)}.sincst.off{flex-basis:auto;border-radius:999px;padding:2px 9px;background:#7a4a0c;color:#fff;margin-left:auto}
+.lbox .btn.wide+.btn.wide{margin-top:0}
+</style>
+</head>
+<body>
+<div class="band"><div class="wrap top">
+ <div class="brand"><h1 class="vh" data-cli-nome></h1><span data-marca-horiz></span><p class="own" id="own"></p></div>
+ <div class="ism"><img alt="ISM Consultoria Pecuária" src="img/ism-branco.png"><div class="uchip" id="uchip"></div></div>
+ <nav class="nav" id="nav" aria-label="Seções">
+  <button type="button" data-v="fin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Financeiro</button>
+  <button type="button" data-v="man"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M8 9V5h8v4M12 13v3M9.5 14.5h5"/></svg>Manejo</button>
+  <button type="button" data-v="reb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h12v10a6 6 0 0 1-12 0z"/><circle cx="12" cy="7" r="1.6"/></svg>Rebanho</button>
+  <button type="button" data-v="sup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 10h18l-2 9H5z"/><path d="M7 10c0-3 2-5 5-5s5 2 5 5"/></svg>Suplemento</button>
+  <button type="button" data-v="atv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/></svg>Atividades</button>
+  <button type="button" data-v="map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Mapa</button>
+ </nav>
+</div></div>
+
+<main class="wrap">
+<!-- FINANCEIRO -->
+<section class="view" id="v-fin" hidden>
+ <div class="bar">
+  <button class="btn ghost sm" type="button" data-go="imp" data-perm="importar" style="margin-left:auto;order:2">Importar planilha</button><div class="period"><label for="per-a">Período</label><select id="per-a"></select><span>até</span><label for="per-b" class="mut" hidden>Fim</label><select id="per-b"></select></div>
+ </div>
+ <form id="fcx" class="card" data-perm="fin_lancar">
+  <p class="eyebrow">Caixa</p><h2 class="ct">Lançar no caixa</h2>
+  <div class="fg">
+   <div class="f"><label for="cx-data">Data</label><input id="cx-data" type="date" name="data" required></div>
+   <div class="f"><label for="cx-tipo">Tipo</label><select id="cx-tipo" name="tipo"><option>Despesa</option><option>Receita</option><option>Investimento</option></select></div>
+   <div class="f"><label for="cx-grupo">Centro de custo</label><select id="cx-grupo" name="grupo"></select></div>
+   <div class="f"><label for="cx-sub">Subcentro (opcional)</label><input id="cx-sub" name="sub"></div>
+   <div class="f"><label for="cx-item">Item</label><input id="cx-item" name="item" list="cx-itens" required><datalist id="cx-itens"></datalist></div>
+   <div class="f"><label for="cx-valor">Valor, R$</label><input id="cx-valor" name="valor" inputmode="decimal" required></div>
+   <div class="f" style="grid-column:1/-1"><label for="cx-obs">Observação</label><input id="cx-obs" name="obs" placeholder="Ex.: NF 1234"></div>
+  </div>
+  <button class="btn">Lançar no caixa</button>
+  <h3 class="sub" style="margin-top:18px">Últimos lançamentos manuais</h3><div class="list" id="cxl"></div>
+ </form>
+ <div class="seg" id="fseg"></div>
+ <div id="f-det" class="view"></div>
+ <div id="f-perf" class="view"></div>
+ <div id="f-fat" class="view"></div>
+ <div id="f-vend" class="view"></div>
+ <div id="f-sup" class="view"></div>
+ <p class="foot" id="ffoot">Desembolso = despesas + investimentos.</p>
+</section>
+
+<!-- MANEJO -->
+<section class="view" id="v-man" hidden>
+ <div class="seg" id="mseg"></div>
+
+ <div id="m-ent" class="view">
+  <form id="fe" class="card">
+   <p class="eyebrow">Romaneio</p><h2 class="ct">Entrada de animais</h2>
+   <p class="hint">Preencha os dados do lote uma vez. Depois lance só o peso de cada animal; o brinco avança sozinho. A categoria sai do peso: até 299 kg bezerro, 300 a 399 garrote, 400 a 479 boi magro, 480 ou mais boi gordo.</p>
+   <div class="fg">
+    <div class="f"><label for="fe-data">Data</label><input id="fe-data" type="date" name="data" required></div>
+    <div class="f"><label for="fe-forn">Fornecedor</label><input id="fe-forn" name="forn" required></div>
+    <div class="f"><label for="fe-preco">Valor por animal, R$ (com frete e comissão)</label><input id="fe-preco" name="preco" inputmode="decimal" required></div>
+    <div class="f"><label for="fe-lote">Lote (opcional)</label><input id="fe-lote" name="lote"></div>
+    <div class="f"><label for="fe-sexo">Sexo</label><select id="fe-sexo" name="sexo"><option>Macho</option><option>Fêmea</option></select></div>
+    <div class="f"><label for="fe-brinco">Primeiro brinco</label><input id="fe-brinco" name="brinco" type="number" inputmode="numeric" required></div>
+    <div class="f"><label for="fe-resp">Responsável</label><select id="fe-resp" name="resp" data-resp required></select></div>
+    <div class="f"><label for="fe-lin">Linhas por coluna da ficha</label><select id="fe-lin" name="lin" data-lin><option>10</option><option>15</option><option>20</option><option>25</option><option>30</option></select></div>
+   </div>
+   <div class="prot" data-p="fe"></div>
+   <button class="btn">Começar lançamento</button>
+  </form>
+  <div id="fe2" class="card run" hidden>
+   <p class="runinfo" id="fi"></p>
+   <div class="tagent" id="fbt" aria-live="polite"></div><span id="fb" hidden></span>
+   <label for="fw">Peso de entrada (kg)</label><input id="fw" class="big" inputmode="decimal" autocomplete="off">
+   <button class="btn wide" id="fgo" type="button">Lançar e ir para o próximo</button>
+   <div class="row2"><button class="btn ghost" id="fund" type="button">Desfazer último</button><button class="btn ghost" id="fend" type="button">Encerrar romaneio</button></div>
+   <div class="fwrap" id="fe-fi"></div>
+  </div>
+ </div>
+
+ <div id="m-pes" class="view">
+  <form id="fp" class="card">
+   <p class="eyebrow">Romaneio</p><h2 class="ct">Pesagem</h2>
+   <p class="hint">Mostra o último peso e o GMD de cada animal antes de lançar, e avisa quando o peso cai.</p>
+   <div class="fg">
+    <div class="f"><label for="fp-data">Data</label><input id="fp-data" type="date" name="data" required></div>
+    <div class="f"><label for="fp-tipo">Tipo</label><select id="fp-tipo" name="tipo"><option>Rotina</option></select></div>
+    <div class="f"><label for="fp-resp">Responsável</label><select id="fp-resp" name="resp" data-resp required></select></div>
+    <div class="f"><label for="fp-lin">Linhas por coluna da ficha</label><select id="fp-lin" name="lin" data-lin><option>10</option><option>15</option><option>20</option><option>25</option><option>30</option></select></div>
+   </div>
+   <div class="prot" data-p="fp"></div>
+   <button class="btn">Iniciar pesagem</button>
+  </form>
+  <div id="fp2" class="card run" hidden>
+   <p class="runinfo" id="pi"></p>
+   <div class="pair"><div class="f"><label for="pb">Brinco</label><input id="pb" class="big" type="number" inputmode="numeric"></div>
+   <div class="f"><label for="pw">Peso (kg)</label><input id="pw" class="big" inputmode="decimal" autocomplete="off"></div></div>
+   <div class="scalerow"><div id="pbt"></div><div id="pg" class="scale" aria-live="polite" data-ph="Digite o brinco e o peso."></div></div>
+   <button class="btn wide" id="pgo" type="button">Lançar pesagem</button>
+   <div class="row2"><button class="btn ghost" id="pcl" type="button">Digitar peso de novo</button><button class="btn ghost" id="pund" type="button">Desfazer último</button><button class="btn ghost" id="pend" type="button">Encerrar pesagem</button></div>
+   <div class="fwrap" id="fp-fi"></div>
+  </div>
+ </div>
+
+ <div id="m-ven" class="view">
+  <form id="fv" class="card">
+   <p class="eyebrow">Romaneio</p><h2 class="ct">Venda</h2>
+   <p class="hint">Valor por animal = peso vivo ÷ 30 × valor da @.</p>
+   <div class="fg">
+    <div class="f"><label for="fv-data">Data</label><input id="fv-data" type="date" name="data" required></div>
+    <div class="f"><label for="fv-comp">Comprador</label><input id="fv-comp" name="comp" required></div>
+    <div class="f"><label for="fv-dest">Destino</label><select id="fv-dest" name="dest"><option>Frigorífico</option><option>Outra fazenda</option><option>Atravessador</option></select></div>
+    <div class="f"><label for="fv-arr">Valor da @, R$</label><input id="fv-arr" name="arr" inputmode="decimal" required></div>
+    <div class="f"><label for="fv-resp">Responsável</label><select id="fv-resp" name="resp" data-resp required></select></div>
+    <div class="f"><label for="fv-lin">Linhas por coluna da ficha</label><select id="fv-lin" name="lin" data-lin><option>10</option><option>15</option><option>20</option><option>25</option><option>30</option></select></div>
+   </div>
+   <button class="btn">Iniciar venda</button>
+  </form>
+  <div id="fv2" class="card run" hidden>
+   <p class="runinfo" id="vi"></p>
+   <div class="pair"><div class="f"><label for="vb">Brinco</label><input id="vb" class="big" type="number" inputmode="numeric"></div>
+   <div class="f"><label for="vw">Peso final (kg)</label><input id="vw" class="big" inputmode="decimal" autocomplete="off"></div></div>
+   <div class="scalerow"><div id="vbt"></div><div id="vg" class="scale" aria-live="polite" data-ph="Digite o brinco e o peso final."></div></div>
+   <button class="btn wide" id="vgo" type="button">Lançar venda</button>
+   <div class="row2"><button class="btn ghost" id="vcl" type="button">Digitar peso de novo</button><button class="btn ghost" id="vund" type="button">Desfazer último</button><button class="btn ghost" id="vend" type="button">Encerrar venda</button></div>
+   <div class="fwrap" id="fv-fi"></div>
+  </div>
+ </div>
+
+ <div id="m-mor" class="view">
+  <div class="card run">
+   <div><p class="eyebrow">Ocorrência</p><h2 class="ct">Morte</h2></div>
+   <div class="pair"><div class="f"><label for="md">Data</label><input type="date" id="md"></div><div class="f"><label for="mb">Brinco</label><input id="mb" type="number" inputmode="numeric"></div></div>
+   <div class="pair"><div class="f"><label for="mc">Causa (opcional)</label><input id="mc"></div><div class="f"><label for="m-resp">Responsável</label><select id="m-resp" data-resp></select></div></div>
+   <div class="scalerow"><div id="mbt"></div><div id="mg" class="scale" aria-live="polite" data-ph="Digite o brinco do animal."></div></div>
+   <button class="btn wide" id="mgo" type="button">Lançar morte</button>
+   <div class="fwrap" id="mfi"></div>
+  </div>
+ </div>
+</section>
+
+<!-- REBANHO -->
+<section class="view" id="v-reb" hidden>
+ <div class="kpis" id="rk"></div>
+ <div class="kpis" id="rkc"></div>
+ <div class="bar"><div class="seg" id="rseg"></div><button class="btn ghost sm" type="button" data-go="imp" data-perm="importar" style="margin-left:auto">Importar planilha</button></div>
+ <div id="r-ani" class="view">
+  <div class="card">
+   <label for="q">Buscar</label><input id="q" placeholder="Número do brinco">
+   <div class="flt">
+    <div class="f"><label for="ff">Fornecedor</label><select id="ff"></select></div>
+    <div class="f"><label for="fl">Lote</label><select id="fl"></select></div>
+    <div class="f"><label for="fcat">Categoria</label><select id="fcat"><option value="">Todas</option><option>Bezerro</option><option>Garrote</option><option>Boi magro</option><option>Boi gordo</option></select></div>
+    <div class="f"><label for="fs">Situação</label><select id="fs"><option value="">Todas</option><option>Ativo</option><option>Vendido</option><option>Morto</option></select></div>
+    <div class="f"><label for="ft">Tipo de evento</label><select id="ft"><option value="">Qualquer</option><option>Entrada</option><option>Pesagem</option><option>Venda</option><option>Morte</option><option>Protocolo sanitário</option></select></div>
+    <div class="f"><label for="fd1">Data de</label><input type="date" id="fd1"></div>
+    <div class="f"><label for="fd2">Data até</label><input type="date" id="fd2"></div>
+   </div>
+  </div>
+  <div class="tools"><span class="mut" id="fc"></span><div class="act"><button class="btn ghost sm" id="fx" type="button">Limpar filtros</button><button class="btn sm" id="fxp" type="button" data-perm="exportar">Excel</button><button class="btn sm" id="fxf" type="button" data-perm="exportar">PDF</button></div></div>
+  <div class="card list" id="ls"></div>
+ </div>
+ <div id="r-rom" class="view">
+  <p class="mut" id="rc"></p>
+  <div class="card list" id="rl"></div>
+ </div>
+</section>
+<!-- SUPLEMENTAÇÃO -->
+<section class="view" id="v-sup" hidden>
+ <div class="bar"><div class="seg" id="sseg"></div><div class="period"><label for="smes">Mês</label><select id="smes"></select></div></div>
+ <div id="s-fab" class="view">
+  <div class="kpis" id="sk"></div>
+  <form id="ffab" class="card">
+   <p class="eyebrow">Fábrica de ração</p><h2 class="ct">Lançar movimento</h2>
+   <p class="hint">Produção entra no estoque da fábrica; saída tira do estoque.</p>
+   <fieldset><legend>Movimento</legend><div class="yn"><label class="chip"><input type="radio" id="fab-tp" name="tipo" value="Produção" checked><span>Produção (entrada)</span></label><label class="chip"><input type="radio" id="fab-ts" name="tipo" value="Saída"><span>Saída</span></label></div></fieldset>
+   <div class="fg">
+    <div class="f"><label for="fab-data">Data</label><input id="fab-data" type="date" name="data" required></div>
+    <div class="f"><label for="fab-dieta">Suplemento</label><select id="fab-dieta" name="dieta" data-dieta></select></div>
+    <div class="f" hidden><label for="fab-outra">Nome do suplemento</label><input id="fab-outra" name="outra"></div>
+    <div class="f"><label for="fab-kg">Quantidade (kg)</label><input id="fab-kg" name="kg" inputmode="decimal" required></div>
+    <div class="f"><label for="fab-resp">Responsável</label><select id="fab-resp" name="resp" data-resp></select></div>
+    <div class="f"><label for="fab-obs">Destino ou observação</label><input id="fab-obs" name="obs" placeholder="Ex.: caminhão retiro 2"></div>
+   </div>
+   <p class="lastt" id="fab-h"></p>
+   <button class="btn">Lançar movimento</button>
+  </form>
+  <div class="card"><h3 class="sub">Estoque da fábrica por suplemento</h3><div class="tw" id="stk"></div></div>
+  <div class="card"><h3 class="sub" id="fab-lt">Movimentos do mês</h3><div class="list" id="fabl"></div></div>
+ </div>
+ <div id="s-coc" class="view">
+  <form id="fcoc" class="card">
+   <p class="eyebrow">Trato</p><h2 class="ct">Suplemento no cocho</h2>
+   <p class="hint">Escolha o pasto, o suplemento e quantos quilos foram colocados. Data, suplemento e responsável ficam marcados para o próximo lançamento.</p>
+   <div class="fg">
+    <div class="f"><label for="coc-data">Data</label><input id="coc-data" type="date" name="data" required></div>
+    <div class="f"><label for="coc-pasto">Pasto</label><select id="coc-pasto" name="pasto"></select></div>
+    <div class="f"><label for="coc-dieta">Suplemento</label><select id="coc-dieta" name="dieta" data-dieta></select></div>
+    <div class="f" hidden><label for="coc-outra">Nome do suplemento</label><input id="coc-outra" name="outra"></div>
+    <div class="f"><label for="coc-resp">Responsável</label><select id="coc-resp" name="resp" data-resp></select></div>
+   </div>
+   <div class="inl" id="coc-new" hidden><div class="f"><label for="np-nome">Nome do novo pasto</label><input id="np-nome"></div><div class="f"><label for="np-area">Área (ha)</label><input id="np-area" inputmode="decimal"></div><button class="btn sm" type="button" id="np-add">Cadastrar</button></div>
+   <fieldset><legend>Como estava o cocho antes do trato?</legend><div class="yn"><label class="chip"><input type="radio" id="coc-cl" name="estado" value="Limpo"><span>Limpo</span></label><label class="chip"><input type="radio" id="coc-cs" name="estado" value="Sobrou"><span>Sobrou</span></label></div></fieldset>
+   <div class="f" style="margin-top:12px"><label for="coc-kg">Quantidade no cocho (kg)</label><input id="coc-kg" name="kg" class="big" inputmode="decimal" autocomplete="off"></div>
+   <p class="lastt" id="coc-h"></p>
+   <button class="btn wide">Lançar no cocho</button>
+  </form>
+  <div class="kpis" id="ck"></div>
+  <div class="card"><h3 class="sub" id="coc-rt">Resumo por pasto</h3><div class="tw" id="cocr"></div></div>
+  <div class="card"><h3 class="sub">Lançamentos do mês</h3><div class="list" id="cocl"></div></div>
+ </div>
+</section>
+
+<!-- ATIVIDADES -->
+<section class="view" id="v-atv" hidden>
+ <div class="kpis" id="ak"></div>
+ <form id="fatv" class="card" data-perm="atv_todas|atv_tatico">
+  <p class="eyebrow">Planejamento</p><h2 class="ct">Nova atividade</h2>
+  <fieldset><legend>Nível</legend><div class="yn" style="flex-wrap:wrap"><label class="chip"><input type="radio" id="atv-ne" name="nivel" value="Estratégico"><span>Estratégico</span></label><label class="chip"><input type="radio" id="atv-nt" name="nivel" value="Tático"><span>Tático</span></label><label class="chip"><input type="radio" id="atv-no" name="nivel" value="Operacional" checked><span>Operacional</span></label></div></fieldset>
+  <div class="fg">
+   <div class="f" style="grid-column:1/-1"><label for="atv-tit">Atividade</label><input id="atv-tit" name="tit" required placeholder="Ex.: Roçar pasto 7 e conferir cercas"></div>
+   <div class="f"><label for="atv-eq">Equipe</label><select id="atv-eq" name="eq"></select></div>
+   
+   <div class="f"><label for="atv-prazo">Prazo</label><input id="atv-prazo" type="date" name="prazo"></div>
+   <div class="f"><label for="atv-obs">Observação</label><input id="atv-obs" name="obs"></div>
+  </div>
+  <fieldset><legend>Responsáveis (marque um ou mais)</legend><div class="chips" id="atv-resp" style="margin-top:0"></div></fieldset>
+  <button class="btn">Adicionar atividade</button>
+ </form>
+ <div class="bar"><div class="seg" id="aseg"></div><div class="period"><label for="afr">Responsável</label><select id="afr"></select></div></div>
+ <div id="atl" class="view"></div>
+</section>
+
+<!-- MAPA -->
+<section class="view" id="v-map" hidden>
+ <div class="kpis" id="mk"></div>
+ <div class="card mapc">
+  <div class="maphd"><div style="display:flex;gap:12px;align-items:center"><div style="width:56px;color:var(--acc)"><span data-marca-selo></span></div><div><p class="eyebrow" id="maptit">Mapa de divisões</p><h2 class="ct" data-cli-nome></h2></div></div>
+   <div class="zm" role="group" aria-label="Zoom do mapa"><button type="button" class="x" id="zo" aria-label="Diminuir">−</button><button type="button" class="x" id="zf">Ajustar</button><button type="button" class="x" id="zi" aria-label="Aumentar">+</button></div></div>
+  <div class="mapv" id="mapv"><img id="mapimg" alt="Mapa da fazenda" src=""></div>
+  <div class="lg"><span><i class="l-pa"></i>Pastagem</span><span><i class="l-co"></i>Corredor</span><span><i class="l-ci"></i>Construções</span><span><i class="l-cu"></i>Curral</span><span><i class="l-ap"></i>Preservação permanente (rio)</span><span><i class="l-rl"></i>Área de recomposição R.L.</span><span><i class="l-es"></i>Estrada/rodovia</span></div>
+  <div class="desc" id="mapdesc"></div>
+  <div class="ismf"><img class="lt" alt="ISM Consultoria Pecuária" src="img/ism.png"><img class="dk" alt="" src="img/ism-branco.png"></div>
+ </div>
+ <div class="card"><h3 class="sub">Pastos</h3><div class="tw" id="pastl"></div>
+  <form id="fpas" data-perm="pastos" class="inl" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,2fr) auto"><div class="f"><label for="pa-nome">Pasto</label><input id="pa-nome" required></div><div class="f"><label for="pa-area">Área (ha)</label><input id="pa-area" inputmode="decimal"></div><div class="f"><label for="pa-obs">Observação</label><input id="pa-obs" placeholder="Capim, aguada, cocho…"></div><button class="btn sm">Salvar pasto</button></form>
+  <p class="mut">Para corrigir um pasto, salve de novo com o mesmo nome.</p>
+ </div>
+</section>
+<!-- IMPORTAR -->
+<section class="view" id="v-imp" hidden>
+ <div class="card run">
+  <div><p class="eyebrow">Importação</p><h2 class="ct">Lançar dados retroativos por planilha</h2></div>
+  <ol class="steps"><li><b>Baixe o modelo</b>. Ele tem as abas Entradas, Pesagens, Vendas, Mortes e Financeiro, com listas de opções e exemplos.</li><li><b>Preencha</b> só as abas que precisar, uma linha por lançamento. Pode colar dados das planilhas antigas.</li><li><b>Escolha o arquivo</b>. O app confere linha por linha e mostra o resultado antes de gravar nada.</li></ol>
+  <div class="row2"><button class="btn ghost" type="button" id="imp-tpl">Baixar modelo (.xlsx)</button><label class="btn" for="imp-file">Escolher planilha</label></div>
+  <input type="file" id="imp-file" accept=".xlsx,.xls,.xlsm" class="vh">
+ </div>
+ <div id="imp-ready"></div>
+ <div id="imp-prev"></div>
+ <div class="card"><h3 class="sub">Importações feitas</h3><p class="mut" style="margin-top:-6px">Desfazer apaga tudo o que aquela importação gravou: animais novos, pesagens, vendas, mortes, romaneios e lançamentos financeiros.</p><div class="list" id="imp-hist"></div></div>
+</section>
+</main>
+<div id="toast" role="status" hidden></div>
+<div id="entrada" class="login"><div class="lbox">
+ <div class="lhd ehd"><img src="img/ism-branco.png" alt="ISM Consultoria Pecuária"><span>ISM Pecuária</span></div>
+ <div id="entrada-corpo"><p class="hint">Carregando…</p></div>
+</div></div>
+<script src="js/config.js"></script>
+<script src="js/versao.js"></script>
+<script src="js/cofre.js"></script>
+<script src="js/nuvem.js"></script>
+<script src="js/sinc.js"></script>
+<script src="js/ponte.js"></script>
+<script src="js/entrada.js"></script>
+</body>
+</html>
