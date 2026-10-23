@@ -169,5 +169,23 @@ with sync_playwright() as pw:
     ok(not erros, 'sem erros de tela (Wilmington) ' + str(erros[:3]))
     b.close()
 
+    # ---------------- Fazenda Demonstração ----------------
+    subprocess.run(['psql', '-d', BANCO, '-q', '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/migrations/005_fazenda_demonstracao.sql'], capture_output=True)
+    ok(sql("select count(*) from animais a join clientes c on c.id=a.cliente_id where c.nome='Fazenda Demonstração'") == '3643', 'demonstração criada com os 3.643 animais')
+    b, ctx, p, erros = abrir(pw, 'italo')
+    p.fill('#flogin input[name=login]', 'italo'); p.fill('#flogin input[name=senha]', 'senha123'); p.click('#flogin button[type=submit]')
+    p.wait_for_selector('#fcod'); p.fill('#fcod input[name=cod]', '123456'); p.click('#fcod button[type=submit]')
+    p.wait_for_selector('.ucard', timeout=30000)
+    ok(all(n in p.evaluate("[...document.querySelectorAll('.ucard b')].map(b=>b.textContent).join('|')") for n in ('Fazenda Barramas', 'Fazenda Demonstração')), 'Italo escolhe entre Barramas e Demonstração')
+    p.click(".ucard:has-text('Demonstração')")
+    p.wait_for_function('window.ISM && window.ISM.iniciado && typeof READY!=="undefined" && READY', timeout=240000)
+    ok(p.evaluate('A.length') == 3643 and p.evaluate("!!document.querySelector('.faixademo')"), 'demonstração aberta com a faixa de aviso')
+    ok(p.evaluate("A.filter(a=>a.forn&&a.forn.includes('Neto')).length") == 0 and p.evaluate("RESP.includes('Carlos') && !RESP.includes('Wilmington')"), 'demonstração sem nomes reais')
+    p.evaluate("localStorage.setItem('ism-demo-perfil','Vaqueiro')"); p.reload()
+    p.wait_for_function('window.ISM && window.ISM.iniciado && typeof READY!=="undefined" && READY', timeout=240000)
+    ok(navs(p) == ['man', 'reb', 'sup', 'atv', 'map'] and not p.evaluate('VAL()'), 'ver como vaqueiro: sem financeiro e sem totais de venda')
+    ok(not erros, 'sem erros de tela (demonstração) ' + str(erros[:3]))
+    b.close()
+
 print('\n' + ('TUDO CERTO' if not falhas else f'{len(falhas)} FALHA(S)'))
 sys.exit(1 if falhas else 0)

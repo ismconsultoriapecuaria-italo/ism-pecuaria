@@ -198,3 +198,9 @@ Todo domingo de madrugada, o GitHub tira uma cópia completa do banco: as pessoa
    psql "ENDERECO-DO-BANCO-NOVO" -f copia.sql
    ```
 3. Funciona num projeto Supabase novo e vazio: entram as pessoas, os logins, as regras e os dados. Em caso de dúvida, peça ajuda ao Claude antes de rodar.
+
+## Fazenda Demonstração (para apresentar a clientes)
+
+- Rode uma vez no SQL Editor o arquivo `supabase/migrations/005_fazenda_demonstracao.sql`. Ele cria a "Fazenda Demonstração" com a operação da Barramas, mas com pessoas, fornecedores, compradores e lotes trocados e os valores em dinheiro 10% diferentes.
+- No app, a ISM escolhe a fazenda ao entrar. Na demonstração aparece uma faixa amarela "dados fictícios". Em **Conta > Ver o app como**, dá para mostrar o app como proprietário, administrativo, vaqueiro ou serviços gerais.
+- Para atualizar a demonstração com os dados mais recentes da Barramas: `select recriar_demonstracao();` (apaga o que foi lançado na demonstração e copia de novo).

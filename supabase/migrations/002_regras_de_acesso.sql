@@ -126,6 +126,8 @@ begin
   if a.id is null or a.cliente_id <> new.cliente_id then
     raise exception 'Animal não encontrado neste cliente';
   end if;
+  -- exclusão de um lançamento nunca é barrada pelas conferências de data
+  if new.excluido_em is not null then return new; end if;
   if new.excluido_em is null and a.excluido_em is not null then
     raise exception 'Animal excluído';
   end if;

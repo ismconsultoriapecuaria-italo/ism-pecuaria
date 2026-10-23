@@ -194,7 +194,7 @@
     if (salvo && !op.escolher) return abrirCliente(c, salvo, op);
     if (lista.length === 1) return abrirCliente(c, lista[0], op);
     tela(`<h2 class="ct">Qual fazenda?</h2><div class="ulist">${lista.map((x, i) =>
-      `<button type="button" class="ucard" data-i="${i}"><b>${esc(x.nome)}</b><span>${x.tipo === 'corretor' ? 'Corretor' : 'Fazenda'}</span></button>`).join('')}</div>
+      `<button type="button" class="ucard" data-i="${i}"><b>${esc(x.nome)}</b><span>${(x.modulos || []).includes('demonstracao') ? 'Para apresentar a clientes · dados fictícios' : x.tipo === 'corretor' ? 'Corretor' : 'Fazenda'}</span></button>`).join('')}</div>
       <p id="entrada-aviso" class="eaviso"></p>`);
     $('#entrada-corpo').onclick = e => { const b = e.target.closest('[data-i]'); if (b) abrirCliente(c, lista[+b.dataset.i], op).catch(err => aviso(err.message, 'erro')); };
   }
@@ -243,10 +243,24 @@
     return { m: [m], k: [], i: { animais: z, custeio: z, nutricao: z, producao: z, sanidade: z, mo: z, pasto: z, arroba: z, gmd: z } };
   }
 
+  const PERFIS_DEMO = [{ r: 'Proprietário', n: 'Carlos' }, { r: 'Administrativo', n: 'Ana' }, { r: 'Vaqueiro', n: 'João' }, { r: 'Serviços gerais', n: 'Zé' }];
   function iniciarTelas(c, cli, P) {
     const pn = window.Sinc.painel(), marca = pn.marca || {};
     const mods = cli.modulos && cli.modulos.length ? cli.modulos : ['financeiro', 'rebanho', 'suplemento', 'atividades', 'mapa'];
     let ultimoEstado = null;
+    // Fazenda de demonstração: a ISM pode ver o app como cada perfil, para apresentar a clientes
+    const demo = mods.includes('demonstracao');
+    let comoPerfil = null;
+    if (demo && P.user.r.includes('ISM')) {
+      try { comoPerfil = localStorage.getItem('ism-demo-perfil'); } catch (e) {}
+      const p = PERFIS_DEMO.find(x => x.r === comoPerfil);
+      if (p) P = Object.assign({}, P, { user: { n: p.n, f: p.r + ' (demonstração)', r: [p.r] } });
+    }
+    if (demo) {
+      const f = document.createElement('div'); f.className = 'faixademo';
+      f.innerHTML = '<b>Fazenda Demonstração</b> · dados fictícios' + (comoPerfil ? ' · vendo como <b>' + esc(P.user.f.replace(' (demonstração)', '')) + '</b>' : '');
+      document.body.prepend(f);
+    }
     window.ISM = {
       cliente: cli, user: P.user, perm: P.perm, nomes: P.nomes.length ? P.nomes : [P.user.n],
       D: pn.D && pn.D.m && pn.D.m.length ? pn.D : vazioD(), V: pn.V || [], SUP: pn.SUP || [],
@@ -328,6 +342,9 @@
       ${st.ultimaSinc ? ' Última sincronização: ' + st.ultimaSinc.toLocaleString('pt-BR') + '.' : ''}</p>
       <button class="btn wide" data-a="sinc">Sincronizar agora</button>
       ${varios ? '<button class="btn ghost wide" data-a="faz">Trocar de fazenda</button>' : ''}
+      ${(cli.modulos || []).includes('demonstracao') && c.perfis && c.perfis[cli.id] && c.perfis[cli.id].user.r.includes('ISM') ?
+        '<p class="hint" style="margin:6px 0 0"><b>Ver o app como</b> (só na demonstração):</p><div class="ulist">' +
+        [{ r: '', n: 'ISM (você)' }].concat(PERFIS_DEMO).map(p => '<button type="button" class="ucard" data-como="' + esc(p.r) + '"><b>' + esc(p.r || 'ISM') + '</b><span>' + esc(p.r ? p.n : 'ver tudo') + '</span></button>').join('') + '</div>' : ''}
       <button class="btn ghost wide" data-a="senha">Trocar minha senha</button>
       <button class="btn ghost wide" data-a="sair">Sair</button>
       <button class="btn ghost wide" data-a="apagar">Sair e apagar os dados deste aparelho</button>
@@ -335,6 +352,8 @@
       <p class="hint" style="font-size:12px">ISM Pecuária · versão ${esc(window.ISM_VERSAO || '1')}</p></div>`;
     document.body.appendChild(d);
     d.onclick = async e => {
+      const como = e.target.closest('[data-como]');
+      if (como) { try { if (como.dataset.como) localStorage.setItem('ism-demo-perfil', como.dataset.como); else localStorage.removeItem('ism-demo-perfil'); } catch (er) {} location.reload(); return; }
       const a = (e.target.closest('[data-a]') || {}).dataset?.a;
       if (!a) { if (e.target === d) d.remove(); return; }
       if (a === 'fechar') d.remove();
