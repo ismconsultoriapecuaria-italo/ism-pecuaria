@@ -17,6 +17,7 @@ App PWA (Android) de gestão de fazendas da ISM Consultoria Pecuária. Desenvolv
 ## Regras de negócio (decididas com o usuário)
 - Só a ISM cria e bloqueia usuários (via dashboard + `vincular_usuario` / `bloquear_usuario`).
 - Proprietário e administrativo lançam tudo. ISM e proprietário editam qualquer lançamento (romaneios de entrada, pesagem, venda e morte, caixa, fábrica, cocho), em `js/edicao.js`; administrativo edita romaneios, fábrica e cocho, mas não o caixa (migração 003).
+- Duas etapas: ISM decide por pessoa com `dispensar_duas_etapas(cliente, nome)` (migração 004). Josiane (Barramas) está dispensada desde 23/10/2026.
 - Vaqueiro vê preço por cabeça e valor da @, não vê totais de venda.
 - Serviços gerais: cocho, fábrica, atividades operacionais; sem rebanho.
 - Atividades: estratégico só ISM/Proprietário; tático também Administrativo/Gerente; operacional todos. Quem não gerencia só muda a situação das próprias.

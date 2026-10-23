@@ -99,11 +99,11 @@
     const [cfg, ism, mem] = await Promise.all([
       N.ler(token, 'config', 'select=chave,valor'),
       N.ler(token, 'ism_equipe', 'select=nome&user_id=eq.' + uid),
-      N.ler(token, 'membros', 'select=cliente_id,nome,funcao,perfis,ativo&user_id=eq.' + uid)
+      N.ler(token, 'membros', 'select=*&user_id=eq.' + uid)
     ]);
     const exigir = (cfg.find(x => x.chave === 'exigir_mfa') || {}).valor !== 'nao';
     const ativos = mem.filter(m => m.ativo);
-    const forte = ism.length > 0 || ativos.some(m => m.perfis.some(p => FORTES.includes(p)));
+    const forte = ism.length > 0 || ativos.some(m => !m.dispensa_mfa && m.perfis.some(p => FORTES.includes(p)));
     return { exigir, forte, ism: ism[0] || null, membros: ativos, bloqueado: !ism.length && !ativos.length };
   }
 

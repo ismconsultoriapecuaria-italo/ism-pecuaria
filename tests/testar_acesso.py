@@ -119,6 +119,14 @@ caso('não lança na Barramas', 'estranho', ins_fin, 'erro')
 caso('não consegue mudar o cliente de um registro', 'estranho',
      "update public.animais set cliente_id=" + B + " returning cliente_id", '10000000-0000-0000-0000-000000000002')
 
+print('--- Dispensa da verificação em duas etapas')
+caso('Josiane sem duas etapas não vê o caixa', 'josiane', conta('financeiro'), 0, aal='aal1')
+rodar("select public.dispensar_duas_etapas('Fazenda Barramas', 'Josiane')")
+caso('Josiane dispensada vê o caixa sem duas etapas', 'josiane', conta('financeiro'), 1, aal='aal1')
+caso('dispensa da Josiane não vale para o Wilmington', 'wilmington', conta('financeiro'), 0, aal='aal1')
+rodar("select public.dispensar_duas_etapas('Fazenda Barramas', 'Josiane', false)")
+caso('dispensa desligada: volta a exigir', 'josiane', conta('financeiro'), 0, aal='aal1')
+
 print('--- Sem login')
 cod, out = rodar("begin; set local role anon; select count(*) from public.animais; rollback;")
 ok = cod != 0
