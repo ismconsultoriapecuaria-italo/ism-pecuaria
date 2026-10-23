@@ -104,6 +104,7 @@ with sync_playwright() as pw:
     ok(esperar(lambda: p.evaluate("!A.find(x=>x.id==='1002').pes.some(x=>x.d==='2020-01-01')")), 'pesagem recusada é desfeita no aparelho')
     # atividade: vaqueiro só vê operacional
     ok(p.evaluate("C.atividades.every(a=>a.nivel==='Operacional')"), 'Genisval só recebe atividades operacionais')
+    ok(not p.evaluate("podeCorrRom(R.find(x=>x.tipo==='Entrada'&&(x.info||{}).por!=='Genisval'))"), 'Genisval não pode corrigir romaneio lançado por outra pessoa')
     ok(not erros, 'sem erros de tela (Genisval) ' + str(erros[:3]))
     b.close()
 
@@ -127,6 +128,12 @@ with sync_playwright() as pw:
     p.evaluate("""(()=>{const x=C.financeiro.find(f=>f.item==='Teste e2e');putC('financeiro',{...x,valor:1})})()""")
     ok(esperar(lambda: 'não permite' in (p.inner_text('#toast') or '')), 'Josiane não consegue alterar o caixa e o app avisa')
     ok(sql("select valor from financeiro where item='Teste e2e'") == '123.45', 'valor do caixa continua o original no banco')
+    # corrige a data de um romaneio de entrada
+    p.on('dialog', lambda d: d.accept())
+    p.evaluate("(()=>{const r=R.find(x=>x.tipo==='Entrada'&&x.it.some(i=>String(i.id)==='3449'));window.__rid=r.id;corrigirDataRom(r,'2026-09-11')})()")
+    ok(esperar(lambda: sql("select ent_data from animais where brinco='3449'") == '2026-09-11'), 'Josiane corrige a data do romaneio de entrada e os animais mudam junto')
+    ok(esperar(lambda: sql("select count(*) from romaneios where data='2026-09-11' and tipo='Entrada'") == '1'), 'romaneio gravado com a nova data')
+    ok(p.evaluate("podeCorrRom(R[0])"), 'Josiane tem a opção de corrigir romaneio')
     ok(not erros, 'sem erros de tela (Josiane) ' + str(erros[:3]))
     b.close()
 
