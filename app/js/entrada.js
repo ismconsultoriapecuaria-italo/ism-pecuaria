@@ -276,7 +276,12 @@
     $('#entrada').hidden = true;
     const s = document.createElement('script');
     s.src = 'js/telas.js?v=' + (window.ISM_VERSAO || '1');
-    s.onload = () => { window.ISM.iniciado = true; if (ultimoEstado) desenharEstado(ultimoEstado); };
+    s.onload = () => {
+      const e = document.createElement('script');
+      e.src = 'js/edicao.js?v=' + (window.ISM_VERSAO || '1');
+      e.onload = () => { window.ISM.iniciado = true; if (ultimoEstado) desenharEstado(ultimoEstado); };
+      document.body.appendChild(e);
+    };
     document.body.appendChild(s);
   }
 

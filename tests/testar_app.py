@@ -137,5 +137,37 @@ with sync_playwright() as pw:
     ok(not erros, 'sem erros de tela (Josiane) ' + str(erros[:3]))
     b.close()
 
+    # ---------------- Wilmington (proprietário): edita qualquer lançamento ----------------
+    b, ctx, p, erros = abrir(pw, 'wilmington')
+    p.on('dialog', lambda d: d.accept())
+    entrar(p, 'wilmington', codigo='123456')
+    def editar_rom(filtro, campos, marcar=()):
+        rid = p.evaluate("(()=>{const r=R.find(" + filtro + ");return String(r.id)})()")
+        p.evaluate(f"editarRomaneio('{rid}')")
+        p.wait_for_selector('#janela-edicao form')
+        for nome, val in campos.items(): p.fill(f'#janela-edicao [name="{nome}"]', val)
+        for nome in marcar: p.check(f'#janela-edicao [name="{nome}"]')
+        p.click('#janela-edicao button[type=submit]')
+        return rid
+    # pesagem: muda o peso do primeiro animal
+    rid = editar_rom("x=>x.tipo==='Pesagem'", {'p0': '401'})
+    br = p.evaluate(f"String(R.find(x=>String(x.id)==='{rid}').it[0].id)")
+    ok(esperar(lambda: sql(f"select count(*) from pesagens p join animais a on a.id=p.animal_id where a.brinco='{br}' and p.peso=401 and p.excluido_em is null") == '1'), 'Wilmington corrige o peso de uma pesagem')
+    # venda: muda a @ e tira um animal
+    rid = editar_rom("x=>x.tipo==='Venda'", {'arr': '420'}, ['r0'])
+    ok(esperar(lambda: sql("select count(*) from vendas where arroba=420 and excluido_em is null") == '129'), 'Wilmington muda o valor da @ da venda (129 animais)')
+    ok(esperar(lambda: sql("select count(*) from vendas where excluido_em is not null") == '1'), 'animal tirado da venda volta ao rebanho')
+    ok(esperar(lambda: sql("select count(*) from vendas_valor vv join vendas v on v.id=vv.venda_id where v.excluido_em is null and abs(vv.valor - round(v.peso/30*420,2))<0.01") == '129'), 'valor de cada animal recalculado pela nova @')
+    # entrada: troca um brinco
+    rid = editar_rom("x=>x.tipo==='Entrada'&&x.it.some(i=>String(i.id)==='3449')", {'b0': '99449'})
+    ok(esperar(lambda: sql("select count(*) from animais where brinco='99449' and excluido_em is null") == '1' and sql("select count(*) from animais where brinco='3449' and excluido_em is null") == '0'), 'Wilmington troca um brinco na entrada')
+    # caixa: edita valor
+    p.click('#nav button[data-v=fin]'); p.wait_for_selector('[data-ed^="financeiro/"]', timeout=10000)
+    p.click('[data-ed^="financeiro/"]'); p.wait_for_selector('#janela-edicao form')
+    p.fill('#janela-edicao [name="valor"]', '150,50'); p.click('#janela-edicao button[type=submit]')
+    ok(esperar(lambda: sql("select count(*) from financeiro where valor=150.50 and excluido_em is null") == '1'), 'Wilmington corrige um lançamento do caixa')
+    ok(not erros, 'sem erros de tela (Wilmington) ' + str(erros[:3]))
+    b.close()
+
 print('\n' + ('TUDO CERTO' if not falhas else f'{len(falhas)} FALHA(S)'))
 sys.exit(1 if falhas else 0)
