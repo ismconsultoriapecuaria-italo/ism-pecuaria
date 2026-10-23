@@ -481,8 +481,10 @@
   }
 
   function estado() {
-    return { pendentes: fila.filter(o => o.c === CLI).length, outros: fila.filter(o => o.c !== CLI).length,
-      enviando, recebendo, online: navigator.onLine, ultimaSinc };
+    const meus = fila.filter(o => o.c === CLI);
+    const maisAntigo = meus.length ? Math.min(...meus.map(o => Math.floor(o.n || Date.now()))) : null;
+    return { pendentes: meus.length, outros: fila.filter(o => o.c !== CLI).length,
+      enviando, recebendo, online: navigator.onLine, ultimaSinc, maisAntigo };
   }
 
   async function iniciar(op) {

@@ -169,3 +169,32 @@ Se o `barramas.sql` não couber no editor, tem duas saídas.
   psql "postgresql://postgres:SENHA@db.SEU-PROJETO.supabase.co:5432/postgres" -f supabase/carga/barramas.sql
   ```
 - **Pelo app.** Entre como ISM, abra **Importar** e envie as planilhas de animais, pesagem e venda.
+
+## Cópia de segurança semanal
+
+Todo domingo de madrugada, o GitHub tira uma cópia completa do banco: as pessoas e os logins, mais todos os dados do app. A cópia é **cifrada com uma senha que só você tem** e fica guardada por 90 dias na aba **Actions > Copia de seguranca**. Sem a senha, o arquivo não serve para nada.
+
+### Ligar a cópia (uma vez só)
+
+1. **Pegue o endereço do banco.**
+   - No Supabase, clique em **Connect** (no topo do projeto) e escolha **Session pooler**.
+   - Copie o endereço, que é parecido com `postgresql://postgres.SEUPROJETO:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres`.
+   - Troque `[YOUR-PASSWORD]` pela senha do banco, sem os colchetes.
+2. **Cadastre o primeiro segredo no GitHub.**
+   - No repositório, abra **Settings > Secrets and variables > Actions > New repository secret**.
+   - Nome: `SUPABASE_DB_URL`. Valor: o endereço do passo 1.
+3. **Cadastre o segundo segredo.**
+   - Clique de novo em **New repository secret**.
+   - Nome: `BACKUP_SENHA`. Valor: uma senha longa, inventada por você.
+   - **Guarde essa senha fora do computador**, num papel ou num cofre de senhas. Sem ela, a cópia não abre.
+4. **Teste.** Em **Actions > Copia de seguranca > Run workflow**, rode uma vez. Deve terminar em verde e mostrar um arquivo `copia-banco-…` para baixar.
+
+### Restaurar (só em emergência)
+
+1. Baixe a cópia do dia desejado em **Actions**.
+2. Num computador com o Postgres instalado, rode:
+   ```sh
+   gpg -d ism-pecuaria-AAAA-MM-DD.sql.gz.gpg | gunzip > copia.sql
+   psql "ENDERECO-DO-BANCO-NOVO" -f copia.sql
+   ```
+3. Funciona num projeto Supabase novo e vazio: entram as pessoas, os logins, as regras e os dados. Em caso de dúvida, peça ajuda ao Claude antes de rodar.

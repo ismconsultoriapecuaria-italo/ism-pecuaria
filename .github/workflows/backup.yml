@@ -1,0 +1,32 @@
+# Cópia de segurança semanal do banco, cifrada com a senha BACKUP_SENHA.
+# Guardada por 90 dias na aba Actions do GitHub. Sem a senha, o arquivo é ilegível.
+name: Copia de seguranca
+on:
+  schedule:
+    - cron: '17 6 * * 0'   # todo domingo, 3h17 em Brasília
+  workflow_dispatch:
+jobs:
+  copia:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instala o cliente do Postgres 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> $GITHUB_PATH
+      - name: Gera a cópia cifrada
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_SENHA: ${{ secrets.BACKUP_SENHA }}
+        run: |
+          test -n "$SUPABASE_DB_URL" || { echo "Falta o segredo SUPABASE_DB_URL"; exit 1; }
+          test -n "$BACKUP_SENHA" || { echo "Falta o segredo BACKUP_SENHA"; exit 1; }
+          sh ferramentas/backup.sh copia
+      - uses: actions/upload-artifact@v4
+        with:
+          name: copia-banco-${{ github.run_number }}
+          path: copia/
+          retention-days: 90

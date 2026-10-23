@@ -288,6 +288,15 @@
     else if (st.pendentes) { t = st.pendentes + ' a enviar'; cls = 'off'; }
     else t = st.ultimaSinc ? 'Sincronizado ' + st.ultimaSinc.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Sincronizado';
     e.textContent = t; e.className = 'sincst ' + cls;
+    // aviso forte quando há lançamentos parados no aparelho há mais de 12 horas
+    let f = document.getElementById('faixapend');
+    const velho = st.pendentes && st.maisAntigo && Date.now() - st.maisAntigo > 12 * 3600e3;
+    if (velho) {
+      if (!f) { f = document.createElement('div'); f.id = 'faixapend'; f.className = 'faixapend'; f.setAttribute('role', 'alert'); document.body.prepend(f); }
+      const d = new Date(st.maisAntigo);
+      f.innerHTML = '<b>' + st.pendentes + ' lançamento(s) só neste celular</b> desde ' + d.toLocaleDateString('pt-BR') + ' ' +
+        d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '. Conecte à internet e abra o app para enviar. Se o celular quebrar ou for limpo, eles se perdem.';
+    } else if (f) f.remove();
   }
 
   let timerInativo = 0;
@@ -351,6 +360,8 @@
   // ---------------- início ----------------
   async function iniciar() {
     if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
+    // pede ao Android para não apagar os dados do app quando faltar espaço no celular
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(j => j || navigator.storage.persist()); } catch (e) {}
     try {
       contas = (await CF.ler('contas')) || {};
       aparelho = Object.assign(aparelho, (await CF.ler('aparelho')) || {});

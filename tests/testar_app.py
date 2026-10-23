@@ -88,6 +88,8 @@ with sync_playwright() as pw:
     p.evaluate("""putC('cocho',{id:uid(),d:'2026-10-22',pasto:'Pasto 3',dieta:'Dieta 1',kg:75,resp:'Genisval',estado:'Sobrou'})""")
     ok(esperar(lambda: 'aguardando' in p.inner_text('#sincst').lower() or 'a enviar' in p.inner_text('#sincst').lower(), 8), 'sem internet: aparece lançamento aguardando (' + p.inner_text('#sincst') + ')')
     ok(sql("select count(*) from supl_cocho") == sql_antes, 'sem internet: nada chegou ao banco ainda')
+    p.evaluate("Sinc._fila().forEach(o=>o.n=Date.now()-13*3600e3); ISM.estado(Sinc.estado())")
+    ok(p.evaluate("!!document.getElementById('faixapend')"), 'aviso forte de lançamento parado há mais de 12 horas')
     # recarrega o app sem internet: continua aberto com os dados
     p.reload()
     p.wait_for_function('window.ISM && window.ISM.iniciado && typeof READY!=="undefined" && READY', timeout=30000)
