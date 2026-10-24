@@ -166,16 +166,20 @@
 
   async function perfilNoCliente(c, cli) {
     const token = await tokenDe(c.uid);
+    // "extras" = ações liberadas só para esta pessoa (migração 006); sem a coluna, segue sem elas
+    const meus = 'cliente_id=eq.' + cli.id + '&user_id=eq.' + c.uid;
     const [ism, mem, regras, todos] = await Promise.all([
       N.ler(token, 'ism_equipe', 'select=nome&user_id=eq.' + c.uid),
-      N.ler(token, 'membros', 'select=nome,funcao,perfis,ativo&cliente_id=eq.' + cli.id + '&user_id=eq.' + c.uid),
+      N.ler(token, 'membros', 'select=nome,funcao,perfis,ativo,extras&' + meus)
+        .catch(e => { if (e.rede) throw e; return N.ler(token, 'membros', 'select=nome,funcao,perfis,ativo&' + meus); }),
       N.ler(token, 'permissoes', 'select=acao,perfil'),
       N.ler(token, 'membros', 'select=nome,ativo&cliente_id=eq.' + cli.id + '&order=nome')
     ]);
     const m = mem.find(x => x.ativo);
     let user;
     if (ism.length) user = { n: ism[0].nome, f: 'Consultor ISM', r: ['ISM'] };
-    else if (m) user = { n: m.nome, f: m.funcao || m.perfis.join(' + '), r: m.perfis };
+    else if (m) user = { n: m.nome, f: m.funcao || m.perfis.join(' + '), r: m.perfis,
+      x: [].concat(...(m.extras || []).map(a => ACOES[a] || [a])) };
     else return null;
     const perm = {};
     for (const p of regras) for (const k of (ACOES[p.acao] || [p.acao])) (perm[k] = perm[k] || []).push(p.perfil);
@@ -218,7 +222,7 @@
     }
     if (!P) throw new Error('Sem internet. Entre uma vez com internet para baixar os dados de ' + cli.nome + '.');
 
-    const pode = k => P.user.r.some(r => (P.perm[k] || []).includes(r));
+    const pode = k => P.user.r.some(r => (P.perm[k] || []).includes(r)) || (P.user.x || []).includes(k);
     const tabelas = ['painel', 'pastos', 'importacoes'];
     if (pode('rebanho') || pode('manejo') || pode('importar')) tabelas.push('romaneios', 'animais', 'pesagens', 'vendas', 'vendas_valor', 'mortes', 'sanitario');
     if (pode('cocho')) tabelas.push('supl_fabrica', 'supl_cocho');

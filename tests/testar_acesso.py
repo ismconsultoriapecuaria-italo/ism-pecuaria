@@ -127,6 +127,19 @@ caso('dispensa da Josiane não vale para o Wilmington', 'wilmington', conta('fin
 rodar("select public.dispensar_duas_etapas('Fazenda Barramas', 'Josiane', false)")
 caso('dispensa desligada: volta a exigir', 'josiane', conta('financeiro'), 0, aal='aal1')
 
+print('--- Permissão extra por pessoa (Josiane edita o caixa)')
+caso('sem a liberação, Josiane não edita o caixa', 'josiane', upd_fin, '')
+rodar("select public.liberar_acao('Fazenda Barramas', 'Josiane', 'fin_editar')")
+caso('liberada, Josiane edita o caixa', 'josiane', upd_fin, '1')
+caso('a liberação não exige menos que as duas etapas', 'josiane', upd_fin, '', aal='aal1')
+caso('liberação da Josiane não vale para o Genisval', 'genisval', upd_fin, '', aal='aal1')
+caso('ninguém se libera sozinho', 'josiane', "select public.liberar_acao('Fazenda Barramas', 'Genisval', 'fin_editar')", 'erro')
+cod, out = rodar("select public.liberar_acao('Fazenda Barramas', 'Josiane', 'voar')")
+ok = cod != 0; falhas += 0 if ok else 1
+print(('OK   ' if ok else 'FALHOU ') + '[ism] ação desconhecida é recusada')
+rodar("select public.liberar_acao('Fazenda Barramas', 'Josiane', 'fin_editar', false)")
+caso('liberação retirada: volta a não editar', 'josiane', upd_fin, '')
+
 print('--- Sem login')
 cod, out = rodar("begin; set local role anon; select count(*) from public.animais; rollback;")
 ok = cod != 0

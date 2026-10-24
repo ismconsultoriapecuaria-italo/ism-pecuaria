@@ -463,7 +463,7 @@ const IMP_SHEETS={entradas:[['brinco','brinco',1],['data','data de entrada',1],[
  pesagens:[['brinco','brinco',1],['data','data da pesagem',1],['peso','peso',1],['tipo','tipo'],['prot','protocolo sanitario'],['resp','responsavel'],['obs','observacao']],
  vendas:[['brinco','brinco',1],['data','data da venda',1],['peso','peso final',1],['arr','valor da @',1],['comp','comprador',1],['dest','destino'],['valor','valor do animal'],['resp','responsavel']],
  mortes:[['brinco','brinco',1],['data','data da morte',1],['causa','causa'],['resp','responsavel']],
- financeiro:[['data','data',1],['tipo','tipo',1],['grupo','centro de custo',1],['sub','subcentro'],['item','item',1],['valor','valor',1],['obs','observacao']]};
+ financeiro:[['data','data',1],['tipo','tipo',1],['grupo','centro de custo',1],['sub','subcentro'],['item','item',1],['valor','valor',1],['forn','fornecedor'],['nf','nota fiscal'],['nf','nf'],['obs','observacao']]};
 const IMP_LAB={entradas:'Entradas',pesagens:'Pesagens',vendas:'Vendas',mortes:'Mortes',financeiro:'Financeiro'};
 const sheetKey=n=>{const k=nrm(n);return Object.keys(IMP_SHEETS).find(s=>k===s||k===s.replace(/s$/,'')||k.startsWith(s))||null};
 function vdate(y,m,d){if(m<1||m>12||d<1||d>31||y<1990||y>2100)return null;const t=new Date(Date.UTC(y,m-1,d));if(t.getUTCMonth()!==m-1)return null;return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')}
@@ -524,7 +524,7 @@ function impPlan(S,ctx){
   const v=pnum(g('valor'));if(isNaN(v)||v===0)return'valor inválido';
   if(ctx.skipBase&&ctx.BM.includes(d.slice(0,7)))return true;
   const grupo=pick(gr,ctx.grupos)||gr.toUpperCase();
-  FIN.push({id:ID+'-'+(fn++),d,tipo,grupo,sub:ptxt(g('sub')),item,valor:Math.abs(v),obs:ptxt(g('obs')),imp:ID});cnt.financeiro++});
+  const fx={id:ID+'-'+(fn++),d,tipo,grupo,sub:ptxt(g('sub')),item,valor:Math.abs(v),obs:ptxt(g('obs')),imp:ID},fo=ptxt(g('forn')),nf=ptxt(g('nf'));if(fo)fx.forn=fo;if(nf)fx.nf=nf;FIN.push(fx);cnt.financeiro++});
  return{ID,st,cnt,animals:[...changed].map(id=>AM.get(id)),roms:[...ROM.values()],fin:FIN,novos:created.size};
 }
 
@@ -585,7 +585,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-undo]');if
 const USERS=[];
 const PERM=ISM.perm;
 let USER=null;
-const can=k=>!!USER&&USER.r.some(r=>(PERM[k]||[]).includes(r));
+const can=k=>!!USER&&(USER.r.some(r=>(PERM[k]||[]).includes(r))||(USER.x||[]).includes(k));
 const VAL=()=>can('rs');
 const NAVP={fin:()=>can('fin_ver')&&ISM.mod('financeiro'),man:()=>can('manejo')&&ISM.mod('rebanho'),reb:()=>can('rebanho')&&ISM.mod('rebanho'),sup:()=>(can('cocho')||can('fabrica'))&&ISM.mod('suplemento'),atv:()=>ISM.mod('atividades'),map:()=>ISM.mod('mapa'),imp:()=>can('importar')};
 function applyPerms(){
@@ -605,16 +605,36 @@ const podeVerAtv=a=>nivVis().includes(a.nivel);
 const podeGerirAtv=a=>can('atv_todas')||(can('atv_tatico')&&a.nivel!=='Estratégico');
 
 /* ============ LANÇAMENTO MANUAL NO CAIXA ============ */
-function cxDraw(){if(!$('#fcx'))return;const tp=$('#cx-tipo').value,gs=[...new Set(D.k.filter(r=>r[0]===tp).map(r=>r[1]).concat(C.financeiro.filter(x=>x.tipo===tp).map(x=>x.grupo)))];const g=$('#cx-grupo'),cv=g.value;g.innerHTML=gs.map(x=>'<option>'+esc(x)+'</option>').join('');if(cv)g.value=cv;
- $('#cx-itens').innerHTML=[...new Set(D.k.map(r=>r[3]))].map(x=>'<option value="'+esc(x)+'">').join('');
+/* Árvore do caixa: tipo → centro → subcentro → itens, da planilha de caixa e dos lançamentos já feitos */
+function cxArvore(tp){const T={};const add=(g,sb,it)=>{if(!g)return;((T[g]=T[g]||{})[sb||'']=T[g][sb||'']||new Set());if(it)T[g][sb||''].add(it)};
+ D.k.filter(r=>r[0]===tp).forEach(r=>add(r[1],r[2],r[3]));(C.financeiro||[]).filter(x=>x.tipo===tp).forEach(x=>add(x.grupo,x.sub,x.item));return T}
+function cxFornecedores(){return[...new Set((C.financeiro||[]).map(x=>String(x.forn||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
+const OUTRO='__outro';
+/* Preenche os selects em cascata. el = {grupo,sub,item,novoF}; val = valores atuais */
+function cxCascata(el,tp,val){const T=cxArvore(tp),o=(v,t)=>'<option value="'+esc(v)+'">'+esc(t==null?v:t)+'</option>';
+ const gs=Object.keys(T);if(val.grupo&&!gs.includes(val.grupo))gs.push(val.grupo);el.grupo.innerHTML=gs.map(g=>o(g)).join('');if(val.grupo)el.grupo.value=val.grupo;
+ const G=T[el.grupo.value]||{},ss=Object.keys(G).sort((a,b)=>a?b?a.localeCompare(b,'pt-BR'):1:-1);if(val.sub!=null&&!ss.includes(val.sub))ss.push(val.sub);
+ el.sub.innerHTML=ss.map(x=>o(x,x||'—')).join('');if(val.sub!=null&&ss.includes(val.sub))el.sub.value=val.sub;
+ const its=[...(G[el.sub.value]||[])].sort((a,b)=>a.localeCompare(b,'pt-BR'));if(val.item&&val.item!==OUTRO&&!its.includes(val.item))its.push(val.item);
+ el.item.innerHTML=its.map(x=>o(x)).join('')+o(OUTRO,'Outro (digitar)');if(val.item)el.item.value=val.item;else if(!its.length)el.item.value=OUTRO;
+ el.novoF.hidden=el.item.value!==OUTRO}
+window.cxCascata=cxCascata;window.cxFornecedores=cxFornecedores;window.CX_OUTRO=OUTRO;
+const cxEl=()=>({grupo:$('#cx-grupo'),sub:$('#cx-sub'),item:$('#cx-item'),novoF:$('#cx-novo-f')});
+function cxDraw(){if(!$('#fcx'))return;const e=cxEl();cxCascata(e,$('#cx-tipo').value,{grupo:e.grupo.value,sub:e.sub.value,item:e.item.value});
+ $('#cx-forns').innerHTML=cxFornecedores().map(x=>'<option value="'+esc(x)+'">').join('');
  const L=C.financeiro.filter(x=>x.manual).sort((a,b)=>b.d.localeCompare(a.d)||String(b.id).localeCompare(String(a.id))).slice(0,15);
- $('#cxl').innerHTML=L.length?L.map(x=>'<div class="rowl"><span class="d">'+fd(x.d).slice(0,5)+'</span><span><b>'+esc(x.item)+'</b><span class="sub2">'+esc(x.tipo)+' · '+esc(x.grupo)+(x.por?' · lançado por '+esc(x.por):'')+'</span></span><span class="q '+(x.tipo==='Receita'?'pos':'neg')+'">'+brl(x.valor)+'</span>'+(can('fin_editar')?'<span style="display:flex;gap:6px">'+(window.botaoEditar?botaoEditar:()=>'')('financeiro',x.id)+'<button type="button" class="x" data-del="financeiro/'+x.id+'">Excluir</button></span>':'<span></span>')+'</div>').join(''):'<p class="mut">Nenhum lançamento manual ainda.</p>'}
-$('#fcx').onsubmit=e=>{e.preventDefault();if(!canW()||!can('fin_lancar'))return;const f=new FormData(e.target),v=num(f.get('valor')),item=String(f.get('item')||'').trim();
- if(!f.get('data'))return msg('Informe a data.');if(!item)return msg('Informe o item.');if(!(v>0))return msg('Informe o valor.');
- putC('financeiro',{id:uid(),d:f.get('data'),tipo:f.get('tipo'),grupo:f.get('grupo'),sub:String(f.get('sub')||'').trim(),item,valor:v,obs:String(f.get('obs')||'').trim(),manual:true,por:USER.n});
- msg(f.get('tipo')+' de '+brl(v)+' lançada no caixa.');$('#cx-valor').value='';$('#cx-item').value='';$('#cx-obs').value='';cxDraw();finDraw()};
+ $('#cxl').innerHTML=L.length?L.map(x=>'<div class="rowl"><span class="d">'+fd(x.d).slice(0,5)+'</span><span><b>'+esc(x.item)+'</b><span class="sub2">'+esc(x.tipo)+' · '+esc(x.grupo)+(x.sub?' · '+esc(x.sub):'')+(x.forn?' · '+esc(x.forn):'')+(x.nf?' · NF '+esc(x.nf):'')+(x.por?' · lançado por '+esc(x.por):'')+'</span></span><span class="q '+(x.tipo==='Receita'?'pos':'neg')+'">'+brl(x.valor)+'</span>'+(can('fin_editar')?'<span style="display:flex;gap:6px">'+(window.botaoEditar?botaoEditar:()=>'')('financeiro',x.id)+'<button type="button" class="x" data-del="financeiro/'+x.id+'">Excluir</button></span>':'<span></span>')+'</div>').join(''):'<p class="mut">Nenhum lançamento manual ainda.</p>'}
+['#cx-grupo','#cx-sub'].forEach((q,i)=>$(q).onchange=()=>{const e=cxEl();cxCascata(e,$('#cx-tipo').value,{grupo:e.grupo.value,sub:i?e.sub.value:null,item:''})});
+$('#cx-item').onchange=()=>{$('#cx-novo-f').hidden=$('#cx-item').value!==OUTRO;if(!$('#cx-novo-f').hidden)$('#cx-novo').focus()};
+$('#fcx').onsubmit=e=>{e.preventDefault();if(!canW()||!can('fin_lancar'))return;const f=new FormData(e.target),v=num(f.get('valor'));
+ const item=(f.get('item')===OUTRO?String(f.get('novo')||''):String(f.get('item')||'')).trim();
+ if(!f.get('data'))return msg('Informe a data.');if(!item)return msg(f.get('item')===OUTRO?'Digite o nome do item novo.':'Informe o item.');if(!(v>0))return msg('Informe o valor.');
+ const doc={id:uid(),d:f.get('data'),tipo:f.get('tipo'),grupo:f.get('grupo'),sub:String(f.get('sub')||'').trim(),item,valor:v,obs:String(f.get('obs')||'').trim(),manual:true,por:USER.n};
+ const forn=String(f.get('forn')||'').trim(),nf=String(f.get('nf')||'').trim();if(forn)doc.forn=forn;if(nf)doc.nf=nf;
+ putC('financeiro',doc);
+ msg(f.get('tipo')+' de '+brl(v)+' lançada no caixa.');['#cx-valor','#cx-novo','#cx-obs','#cx-forn','#cx-nf'].forEach(q=>$(q).value='');$('#cx-item').value='';cxDraw();finDraw()};
 
-$('#cx-data').value=today();$('#cx-tipo').onchange=()=>{$('#cx-grupo').value='';cxDraw()};
+$('#cx-data').value=today();$('#cx-tipo').onchange=()=>{const e=cxEl();cxCascata(e,$('#cx-tipo').value,{grupo:'',sub:null,item:''})};
 /* início */
 ['#pbt','#vbt','#mbt'].forEach(s=>tagSet(s,''));
 manDraw();

@@ -320,10 +320,13 @@ label.btn{color:var(--acc-ink)}
    <div class="f"><label for="cx-data">Data</label><input id="cx-data" type="date" name="data" required></div>
    <div class="f"><label for="cx-tipo">Tipo</label><select id="cx-tipo" name="tipo"><option>Despesa</option><option>Receita</option><option>Investimento</option></select></div>
    <div class="f"><label for="cx-grupo">Centro de custo</label><select id="cx-grupo" name="grupo"></select></div>
-   <div class="f"><label for="cx-sub">Subcentro (opcional)</label><input id="cx-sub" name="sub"></div>
-   <div class="f"><label for="cx-item">Item</label><input id="cx-item" name="item" list="cx-itens" required><datalist id="cx-itens"></datalist></div>
+   <div class="f"><label for="cx-sub">Subcentro</label><select id="cx-sub" name="sub"></select></div>
+   <div class="f"><label for="cx-item">Item</label><select id="cx-item" name="item"></select></div>
+   <div class="f" id="cx-novo-f" hidden><label for="cx-novo">Nome do item novo</label><input id="cx-novo" name="novo" autocomplete="off"></div>
    <div class="f"><label for="cx-valor">Valor, R$</label><input id="cx-valor" name="valor" inputmode="decimal" required></div>
-   <div class="f" style="grid-column:1/-1"><label for="cx-obs">Observação</label><input id="cx-obs" name="obs" placeholder="Ex.: NF 1234"></div>
+   <div class="f"><label for="cx-forn">Fornecedor (opcional)</label><input id="cx-forn" name="forn" list="cx-forns" autocomplete="off"><datalist id="cx-forns"></datalist></div>
+   <div class="f"><label for="cx-nf">Nota fiscal (opcional)</label><input id="cx-nf" name="nf" inputmode="numeric" autocomplete="off" placeholder="Nº da NF"></div>
+   <div class="f" style="grid-column:1/-1"><label for="cx-obs">Observação</label><input id="cx-obs" name="obs"></div>
   </div>
   <button class="btn">Lançar no caixa</button>
   <h3 class="sub" style="margin-top:18px">Últimos lançamentos manuais</h3><div class="list" id="cxl"></div>

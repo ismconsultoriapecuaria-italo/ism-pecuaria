@@ -27,12 +27,30 @@
     financeiro: {
       pode: () => can('fin_editar'), titulo: 'Editar lançamento do caixa',
       campos: x => campo('Data', 'd', x.d, 'date') + escolha('Tipo', 'tipo', ['Receita', 'Despesa', 'Investimento'], x.tipo) +
-        campo('Centro de custo', 'grupo', x.grupo) + campo('Subcentro', 'sub', x.sub) + campo('Item', 'item', x.item) +
-        campo('Valor (R$)', 'valor', String(x.valor).replace('.', ','), 'text', ' inputmode="decimal"') + campo('Observação', 'obs', x.obs),
+        '<label>Centro de custo<select name="grupo"></select></label><label>Subcentro<select name="sub"></select></label>' +
+        '<label>Item<select name="item"></select></label><label data-novo hidden>Nome do item novo<input name="novo" autocomplete="off"></label>' +
+        campo('Valor (R$)', 'valor', String(x.valor).replace('.', ','), 'text', ' inputmode="decimal"') +
+        campo('Fornecedor (opcional)', 'forn', x.forn, 'text', ' list="ed-forns" autocomplete="off"') +
+        '<datalist id="ed-forns">' + cxFornecedores().map(v => '<option value="' + H(v) + '">').join('') + '</datalist>' +
+        campo('Nota fiscal (opcional)', 'nf', x.nf, 'text', ' inputmode="numeric" autocomplete="off"') + campo('Observação', 'obs', x.obs),
+      montar: (d, x) => {
+        const q = n => d.querySelector('[name="' + n + '"]');
+        const el = { grupo: q('grupo'), sub: q('sub'), item: q('item'), novoF: d.querySelector('[data-novo]') };
+        const tp = () => q('tipo').value;
+        cxCascata(el, tp(), { grupo: x.grupo, sub: x.sub || '', item: x.item });
+        q('tipo').onchange = () => cxCascata(el, tp(), { grupo: '', sub: null, item: '' });
+        el.grupo.onchange = () => cxCascata(el, tp(), { grupo: el.grupo.value, sub: null, item: '' });
+        el.sub.onchange = () => cxCascata(el, tp(), { grupo: el.grupo.value, sub: el.sub.value, item: '' });
+        el.item.onchange = () => { el.novoF.hidden = el.item.value !== CX_OUTRO; };
+      },
       ler: (f, x) => {
         const v = num(f.get('valor')); if (!f.get('d')) return 'Informe a data.'; if (!(v > 0)) return 'Informe o valor.';
-        if (!String(f.get('item')).trim()) return 'Informe o item.';
-        return { ...x, d: f.get('d'), tipo: f.get('tipo'), grupo: String(f.get('grupo')).trim().toUpperCase() || x.grupo, sub: String(f.get('sub')).trim(), item: String(f.get('item')).trim(), valor: v, obs: String(f.get('obs')).trim() };
+        const item = String(f.get('item') === CX_OUTRO ? f.get('novo') || '' : f.get('item') || '').trim();
+        if (!item) return f.get('item') === CX_OUTRO ? 'Digite o nome do item novo.' : 'Informe o item.';
+        const n = { ...x, d: f.get('d'), tipo: f.get('tipo'), grupo: String(f.get('grupo') || '').trim() || x.grupo, sub: String(f.get('sub') || '').trim(), item, valor: v, obs: String(f.get('obs')).trim() };
+        const forn = String(f.get('forn') || '').trim(), nf = String(f.get('nf') || '').trim();
+        if (forn) n.forn = forn; else delete n.forn; if (nf) n.nf = nf; else delete n.nf;
+        return n;
       }
     },
     fabrica: {
@@ -58,12 +76,13 @@
   function editarSimples(col, id) {
     const M = SIMPLES[col], x = (C[col] || []).find(y => String(y.id) === String(id));
     if (!M || !x || !M.pode() || !canW()) return;
-    janela(M.titulo, M.campos(x), f => {
+    const d = janela(M.titulo, M.campos(x), f => {
       const n = M.ler(f, x);
       if (typeof n === 'string') { msg(n); return false; }
       if (n.d > today()) { msg('A data não pode ser no futuro.'); return false; }
       putC(col, n); msg('Lançamento alterado.'); redraw();
     });
+    if (M.montar) M.montar(d, x);
   }
   window.botaoEditar = (col, id) => SIMPLES[col] && SIMPLES[col].pode() ? '<button type="button" class="x" data-ed="' + col + '/' + H(id) + '">Editar</button>' : '';
   document.addEventListener('click', e => {
