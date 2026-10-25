@@ -114,6 +114,13 @@ h3.sub{margin:0 0 10px;font:700 14px/1.2 var(--f-d);letter-spacing:.08em;text-tr
 
 /* árvore de custos */
 details.cc{border-top:1px solid var(--line)}
+.cxd{margin-top:18px;border:1px solid var(--line);border-radius:10px;padding:0 12px}
+.cxd summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:12px 0;font-weight:600}
+.cxd summary::-webkit-details-marker{display:none}
+.cxd .cxd-a{font-size:.85em;color:var(--mut,#5C6B5F);font-weight:500}
+.cxd[open] .cxd-a::after{content:" ▲"}.cxd:not([open]) .cxd-a::after{content:" ▼"}
+.cxd[open]{padding-bottom:12px}
+#cxl-mais{margin-top:8px}
 details.cc:first-of-type{border-top:0}
 details.cc summary{cursor:pointer;list-style:none;padding:10px 0;display:block}
 details.cc summary::-webkit-details-marker{display:none}
@@ -329,7 +336,7 @@ label.btn{color:var(--acc-ink)}
    <div class="f" style="grid-column:1/-1"><label for="cx-obs">Observação</label><input id="cx-obs" name="obs"></div>
   </div>
   <button class="btn">Lançar no caixa</button>
-  <h3 class="sub" style="margin-top:18px">Últimos lançamentos manuais</h3><div class="list" id="cxl"></div>
+  <details class="cxd" id="cxd"><summary><span id="cxd-t">Últimos lançamentos manuais</span><span class="cxd-a">ver</span></summary><div class="list" id="cxl"></div><button type="button" class="btn ghost sm" id="cxl-mais" hidden>Mostrar mais</button></details>
  </form>
  <div class="seg" id="fseg"></div>
  <div id="f-det" class="view"></div>

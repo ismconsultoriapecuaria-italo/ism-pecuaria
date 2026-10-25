@@ -185,7 +185,10 @@ with sync_playwright() as pw:
     rid = editar_rom("x=>x.tipo==='Entrada'&&x.it.some(i=>String(i.id)==='3449')", {'b0': '99449'})
     ok(esperar(lambda: sql("select count(*) from animais where brinco='99449' and excluido_em is null") == '1' and sql("select count(*) from animais where brinco='3449' and excluido_em is null") == '0'), 'Wilmington troca um brinco na entrada')
     # caixa: edita valor
-    p.click('#nav button[data-v=fin]'); p.wait_for_selector('[data-ed^="financeiro/"]', timeout=10000)
+    p.click('#nav button[data-v=fin]'); p.wait_for_selector('#cxd', timeout=10000)
+    ok(not p.evaluate("document.querySelector('#cxd').open"), 'últimos lançamentos manuais começam recolhidos')
+    p.click('#cxd summary'); p.wait_for_selector('[data-ed^="financeiro/"]', state='visible', timeout=10000)
+    ok(p.evaluate("document.querySelectorAll('#cxl .rowl').length") <= 10, 'lista aberta mostra no máximo 10 de cada vez')
     p.click('[data-ed^="financeiro/"]'); p.wait_for_selector('#janela-edicao form')
     p.fill('#janela-edicao [name="valor"]', '150,50'); p.click('#janela-edicao button[type=submit]')
     ok(esperar(lambda: sql("select count(*) from financeiro where valor=150.50 and excluido_em is null") == '1'), 'Wilmington corrige um lançamento do caixa')

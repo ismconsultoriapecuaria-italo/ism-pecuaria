@@ -636,11 +636,14 @@ function cxCascata(el,tp,val){const T=cxArvore(tp),o=(v,t)=>'<option value="'+es
  el.novoF.hidden=el.item.value!==OUTRO}
 window.cxCascata=cxCascata;window.cxFornecedores=cxFornecedores;window.CX_OUTRO=OUTRO;
 const cxEl=()=>({grupo:$('#cx-grupo'),sub:$('#cx-sub'),item:$('#cx-item'),novoF:$('#cx-novo-f')});
+let CXN=10;
 function cxDraw(){if(!$('#fcx'))return;const e=cxEl();cxCascata(e,$('#cx-tipo').value,{grupo:e.grupo.value,sub:e.sub.value,item:e.item.value});
  $('#cx-forns').innerHTML=cxFornecedores().map(x=>'<option value="'+esc(x)+'">').join('');
- const L=C.financeiro.filter(x=>x.manual).sort((a,b)=>b.d.localeCompare(a.d)||String(b.id).localeCompare(String(a.id))).slice(0,15);
+ const TL=C.financeiro.filter(x=>x.manual).sort((a,b)=>b.d.localeCompare(a.d)||String(b.id).localeCompare(String(a.id))),L=TL.slice(0,CXN);
+ $('#cxd-t').textContent='Últimos lançamentos manuais'+(TL.length?' ('+TL.length+')':'');$('#cxd').querySelector('.cxd-a').textContent=$('#cxd').open?'esconder':'ver';$('#cxl-mais').hidden=TL.length<=CXN;
  $('#cxl').innerHTML=L.length?L.map(x=>'<div class="rowl"><span class="d">'+fd(x.d).slice(0,5)+'</span><span><b>'+esc(x.item)+'</b><span class="sub2">'+esc(x.tipo)+' · '+esc(x.grupo)+(x.sub?' · '+esc(x.sub):'')+(x.forn?' · '+esc(x.forn):'')+(x.nf?' · NF '+esc(x.nf):'')+(x.por?' · lançado por '+esc(x.por):'')+'</span></span><span class="q '+(x.tipo==='Receita'?'pos':'neg')+'">'+brl(x.valor)+'</span>'+(can('fin_editar')?'<span style="display:flex;gap:6px">'+(window.botaoEditar?botaoEditar:()=>'')('financeiro',x.id)+'<button type="button" class="x" data-del="financeiro/'+x.id+'">Excluir</button></span>':'<span></span>')+'</div>').join(''):'<p class="mut">Nenhum lançamento manual ainda.</p>'}
 ['#cx-grupo','#cx-sub'].forEach((q,i)=>$(q).onchange=()=>{const e=cxEl();cxCascata(e,$('#cx-tipo').value,{grupo:e.grupo.value,sub:i?e.sub.value:null,item:''})});
+$('#cxd').addEventListener('toggle',()=>{if(!$('#cxd').open)CXN=10;cxDraw()});$('#cxl-mais').onclick=()=>{CXN+=20;cxDraw()};
 $('#cx-item').onchange=()=>{$('#cx-novo-f').hidden=$('#cx-item').value!==OUTRO;if(!$('#cx-novo-f').hidden)$('#cx-novo').focus()};
 $('#fcx').onsubmit=e=>{e.preventDefault();if(!canW()||!can('fin_lancar'))return;const f=new FormData(e.target),v=num(f.get('valor'));
  const item=(f.get('item')===OUTRO?String(f.get('novo')||''):String(f.get('item')||'')).trim();
