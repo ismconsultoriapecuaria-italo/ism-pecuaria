@@ -30,6 +30,13 @@ App PWA (Android) de gestão de fazendas da ISM Consultoria Pecuária. Desenvolv
 - Atividades: estratégico só ISM/Proprietário; tático também Administrativo/Gerente; operacional todos. Quem não gerencia só muda a situação das próprias.
 - Categoria por peso: <300 Bezerro, <400 Garrote, <480 Boi magro, ≥480 Boi gordo. @ = peso ÷ 30.
 
+## Pendências técnicas (combinado com o Italo em 25/10/2026: não fazer agora, mas lembrá-lo)
+- Ligar o backup semanal: segredos `SUPABASE_DB_URL` e `BACKUP_SENHA` no GitHub (é o mais prioritário).
+- Registro de migrações aplicadas no banco + aviso no app quando faltar alguma; depois, aplicar migrações pelo GitHub Actions.
+- Reorganizar `telas.js` em arquivos menores por tela, aos poucos, sem mudar o que o usuário vê.
+- Quando houver mais clientes: revisão do projeto por um programador.
+Lembrar o Italo dessas pendências de tempos em tempos, e antes de começar trabalho grande.
+
 ## Testes
 - `tests/testar_acesso.py`: regras de acesso no Postgres (precisa de `tests/supabase_simulado.sql` + migrations + `tests/dados_teste.sql`).
 - `tests/servidor_simulado.py` + `tests/testar_app.py`: app real no Chromium contra imitação do Supabase (código MFA de teste: 123456). Prepare com `tests/preparar_banco_e2e.sh`.
