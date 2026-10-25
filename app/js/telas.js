@@ -608,7 +608,7 @@ function applyPerms(){
  document.querySelectorAll('#nav button').forEach(b=>b.hidden=!NAVP[b.dataset.v]());
  const n=[...document.querySelectorAll('#nav button')].filter(b=>!b.hidden).length;$('#nav').style.setProperty('--nav-n',n);
  document.querySelectorAll('[data-perm]').forEach(e=>e.hidden=!e.dataset.perm.split('|').some(k=>can(k)));
- ST.splice(0,ST.length,...[['fab','Fábrica de ração'],['coc','Cocho']].filter(([k])=>can(k=='fab'?'fabrica':'cocho')));if(!ST.some(s=>s[0]===SP)&&ST.length)SP=ST[0][0];
+ ST.splice(0,ST.length,...[['fab','Fábrica de ração'],['coc','Cocho'],['pre','Preço das dietas']].filter(([k])=>can(k=='fab'?'fabrica':k=='pre'?'importar':'cocho')));if(!ST.some(s=>s[0]===SP)&&ST.length)SP=ST[0][0];
  const tat=!can('atv_todas');$('#atv-ne').disabled=tat;$('#atv-ne').closest('.chip').hidden=tat;
  $('#uchip').innerHTML='<b>'+esc(USER.n)+'</b><span>'+esc(USER.r.join(' + '))+'</span><button type="button" id="utroca">Conta</button><span id="sincst" class="sincst">…</span>';
  document.querySelectorAll('[data-resp]').forEach(s=>{if([...s.options].some(o=>o.value===USER.n))s.value=USER.n});

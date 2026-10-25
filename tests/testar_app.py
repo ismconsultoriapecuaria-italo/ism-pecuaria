@@ -61,7 +61,7 @@ with sync_playwright() as pw:
     ok('Barramas' in p.evaluate("document.querySelector('.brand').innerHTML"), 'logo da Barramas no topo')
     ok(p.evaluate("!!document.querySelector('#mapimg').src.startsWith('data:image')"), 'mapa da fazenda carregado')
     # preço das dietas (só ISM) → o cocho vira despesa de nutrição no caixa
-    p.click('#nav button[data-v=sup]'); p.wait_for_selector('#fpre', state='visible')
+    p.click('#nav button[data-v=sup]'); p.click('#sseg button:has-text("Preço das dietas")'); p.wait_for_selector('#fpre', state='visible')
     p.select_option('#pre-dieta', 'Dieta 1'); p.fill('#pre-preco', '2,00'); p.fill('#pre-desde', '2026-10-01'); p.click('#fpre button.btn')
     kg1 = float(sql("select coalesce(sum(kg),0) from supl_cocho where dieta='Dieta 1' and excluido_em is null and data>='2026-10-01'"))
     ok(esperar(lambda: sql("select valor from financeiro where origem='cocho' and item='Dieta 1' and excluido_em is null") == '%.2f' % (kg1 * 2)), 'preço salvo e cocho de outubro lançado no caixa (%.0f kg × R$ 2,00)' % kg1)
