@@ -1,2 +1,2 @@
 // Mude este número a cada publicação: o aparelho baixa a versão nova sozinho.
-self.ISM_VERSAO = '1.6.0';
+self.ISM_VERSAO = '1.7.0';

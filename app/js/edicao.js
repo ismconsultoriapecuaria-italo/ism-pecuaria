@@ -12,7 +12,7 @@
       '<button class="btn wide" type="submit">Salvar alterações</button><button class="btn ghost wide" type="button" data-fechar>Cancelar</button></form></div>';
     document.body.appendChild(d);
     d.querySelector('[data-fechar]').onclick = () => d.remove();
-    d.querySelector('form').onsubmit = e => { e.preventDefault(); if (salvar(new FormData(e.target)) !== false) d.remove(); };
+    d.querySelector('form').onsubmit = e => { e.preventDefault(); if (!certeza('Salvar as alterações?')) return; if (salvar(new FormData(e.target)) !== false) d.remove(); };
     return d;
   }
   const opc = (lista, atual) => lista.map(v => { const [val, txt] = Array.isArray(v) ? v : [v, v]; return '<option value="' + H(val) + '"' + (String(val) === String(atual ?? '') ? ' selected' : '') + '>' + H(txt) + '</option>'; }).join('');
@@ -170,6 +170,8 @@
       }
     });
     if (prob.length) return 'Não foi possível salvar: ' + prob.slice(0, 4).join('; ') + (prob.length > 4 ? ' e mais ' + (prob.length - 4) : '') + '.';
+    const fora = novoIt.filter(x => x.p > 0 && (x.p < 100 || x.p > 600));
+    if (fora.length && !certeza('ATENÇÃO AO PESO: ' + fora.slice(0, 5).map(x => 'brinco ' + x.id + ' com ' + x.p + ' kg').join(', ') + (fora.length > 5 ? ' e mais ' + (fora.length - 5) : '') + ' (fora de 100 a 600 kg).\n\nTem certeza que quer salvar estes pesos?')) return false;
     const tirados = r.it.length - novoIt.length;
     if (!novoIt.length && !confirm('Todos os animais foram tirados. Apagar o romaneio inteiro?')) return false;
     if (tirados && novoIt.length && !confirm(tirados + ' animal(is) serão tirados deste romaneio. Confirmar?')) return false;

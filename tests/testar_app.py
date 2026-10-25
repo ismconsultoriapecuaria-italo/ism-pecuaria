@@ -31,8 +31,13 @@ def abrir(pw, nome):
     erros = []
     p.goto(URL); p.wait_for_function('navigator.serviceWorker && navigator.serviceWorker.controller || new Promise(r=>setTimeout(r,1500))')
     p.on('pageerror', lambda e: erros.append(str(e)))
+    DIALOGOS.clear()
+    p.on('dialog', lambda d: (DIALOGOS.append(d.message), d.accept() if RESPOSTA['sim'] else d.dismiss()))
     p.reload()
     return b, ctx, p, erros
+
+DIALOGOS = []
+RESPOSTA = {'sim': True}
 
 def entrar(p, login, senha='senha123', codigo=None):
     p.fill('#flogin input[name=login]', login)
@@ -168,7 +173,6 @@ with sync_playwright() as pw:
     ok(p.evaluate("__xls.map(x=>x[0]).join(',')") == 'Resumo,Lançamentos' and p.evaluate("__xls[1][1]") >= 4, 'Excel com abas Resumo e Lançamentos: ' + str(p.evaluate("__xls")))
     p.click('#janela-rel [data-fechar]')
     # corrige a data de um romaneio de entrada
-    p.on('dialog', lambda d: d.accept())
     p.evaluate("(()=>{const r=R.find(x=>x.tipo==='Entrada'&&x.it.some(i=>String(i.id)==='3449'));window.__rid=r.id;corrigirDataRom(r,'2026-09-11')})()")
     ok(esperar(lambda: sql("select ent_data from animais where brinco='3449'") == '2026-09-11'), 'Josiane corrige a data do romaneio de entrada e os animais mudam junto')
     ok(esperar(lambda: sql("select count(*) from romaneios where data='2026-09-11' and tipo='Entrada'") == '1'), 'romaneio gravado com a nova data')
@@ -178,7 +182,6 @@ with sync_playwright() as pw:
 
     # ---------------- Wilmington (proprietário): edita qualquer lançamento ----------------
     b, ctx, p, erros = abrir(pw, 'wilmington')
-    p.on('dialog', lambda d: d.accept())
     entrar(p, 'wilmington', codigo='123456')
     def editar_rom(filtro, campos, marcar=()):
         rid = p.evaluate("(()=>{const r=R.find(" + filtro + ");return String(r.id)})()")
@@ -200,6 +203,23 @@ with sync_playwright() as pw:
     # entrada: troca um brinco
     rid = editar_rom("x=>x.tipo==='Entrada'&&x.it.some(i=>String(i.id)==='3449')", {'b0': '99449'})
     ok(esperar(lambda: sql("select count(*) from animais where brinco='99449' and excluido_em is null") == '1' and sql("select count(*) from animais where brinco='3449' and excluido_em is null") == '0'), 'Wilmington troca um brinco na entrada')
+    # protocolo de segurança do peso (pesagem): 24 kg pergunta; recusando, nada é lançado
+    p.click('#nav button[data-v=man]')
+    br = p.evaluate("A.find(a=>!a.venda&&!a.morte).id")
+    p.evaluate("P={d:today(),t:'Rotina',s:[],resp:USER.n,c:0,u:[],lin:10}")
+    n0 = sql(f"select count(*) from pesagens p join animais a on a.id=p.animal_id where a.brinco='{br}' and p.excluido_em is null")
+    RESPOSTA['sim'] = False; DIALOGOS.clear()
+    p.evaluate(f"(()=>{{document.querySelector('#pb').value='{br}';document.querySelector('#pw').value='24';pcalc();planca()}})()")
+    ok(any('ATENÇÃO AO PESO' in m and 'abaixo de 100 kg' in m for m in DIALOGOS), 'peso de 24 kg pede confirmação: ' + str(DIALOGOS[:1]))
+    ok('fora do normal' in p.inner_text('#pg'), 'a tela já avisa "peso fora do normal" antes de lançar')
+    time.sleep(1.5)
+    ok(sql(f"select count(*) from pesagens p join animais a on a.id=p.animal_id where a.brinco='{br}' and p.excluido_em is null") == n0, 'recusando, a pesagem de 24 kg não é lançada')
+    ok(p.evaluate("pesoAlertas({r:{it:[240,245,250,238,242].map(p=>({p}))}},330).some(t=>t.includes('foge do padrão'))"), 'garrote no meio de romaneio de bezerros é avisado')
+    ok(p.evaluate("pesoAlertas({r:{it:[240,245,250,238,242].map(p=>({p}))}},260).length===0"), 'bezerro dentro do padrão não é avisado')
+    ok(p.evaluate("pesoAlertas(null,650).some(t=>t.includes('acima de 600'))"), 'acima de 600 kg é avisado')
+    RESPOSTA['sim'] = True; DIALOGOS.clear()
+    p.evaluate("document.querySelector('#pend').click()")
+    ok(any('Encerrar esta pesagem' in m for m in DIALOGOS), 'encerrar romaneio pergunta antes')
     # caixa: edita valor
     p.click('#nav button[data-v=fin]'); p.wait_for_selector('#cxd', timeout=10000)
     ok(not p.evaluate("document.querySelector('#cxd').open"), 'últimos lançamentos manuais começam recolhidos')

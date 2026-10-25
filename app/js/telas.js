@@ -228,6 +228,18 @@ $('#rl').onclick=async e=>{const t=e.target.closest('[data-r]');if(!t)return;con
  const c=rcols(r),rows=[['Romaneio',r.tipo],['Data',fd(r.d)],...rhead(r),...ravg(r).filter(x=>x[0]!='Peso médio')];
   fichaTot(r).forEach(t=>rows.push(t));const N=linOf(r);rows.push([],['Coluna da ficha','Linha',...c.map(k=>k[0])],...r.it.map((x,i)=>[Math.floor(i/N)+1,String(i%N+1).padStart(2,'0'),...c.map(k=>k[1](x))]));
  try{await saveRows(d,r.tipo.toLowerCase()+'-'+r.d,rows,t.dataset.f,r);msg('Relatório exportado.')}catch(er){xerr(er)}};
+/* Confirmação antes de gravar, excluir ou encerrar qualquer coisa (pedido do Italo, 25/10/2026) */
+const certeza=t=>window.confirm(t);
+/* Protocolo de segurança do peso: abaixo de 100 kg, acima de 600 kg, ou fugindo do padrão do romaneio */
+const PESO_MIN=100,PESO_MAX=600;
+function pesoAlertas(S,p){const al=[];if(p<PESO_MIN)al.push('abaixo de '+PESO_MIN+' kg');if(p>PESO_MAX)al.push('acima de '+PESO_MAX+' kg');
+ const ps=((S&&S.r&&S.r.it)||[]).map(i=>+i.p).filter(x=>x>0).sort((a,b)=>a-b);
+ if(ps.length>=5){const md=ps.length%2?ps[(ps.length-1)/2]:(ps[ps.length/2-1]+ps[ps.length/2])/2;
+  if(Math.abs(p-md)>md*0.25)al.push('foge do padrão deste romaneio: até agora a mediana é '+nf(md,0)+' kg ('+catPeso(md).toLowerCase()+') e este peso é de '+catPeso(p).toLowerCase())}
+ return al}
+function pesoConfere(S,p,brinco){const al=pesoAlertas(S,p);if(!al.length)return true;
+ return certeza('ATENÇÃO AO PESO'+(brinco?' do brinco '+brinco:'')+': '+nf(p,0)+' kg\n\n• '+al.join('\n• ')+'\n\nTem certeza que quer lançar este peso?')}
+window.pesoAlertas=pesoAlertas;window.certeza=certeza;
 function radd(S,tipo,d,info,it){if(!S.r){S.r={id:Date.now(),tipo,d,info:{...info,lin:S.lin||10,por:USER?USER.n:''},it:[]};R.push(S.r)}S.r.it.push(it);putR(S.r)}
 function rund(S){if(!S.r)return;S.r.it.pop();if(!S.r.it.length){const id=S.r.id;R=R.filter(x=>x.id!==id);delR(S.r);S.r=null}else putR(S.r)}
 
@@ -286,13 +298,14 @@ const nextFree=b=>{while(A.some(a=>+a.id==b))b++;return b};
 function eshow(){$('#fb').textContent=E.n;tagSet('#fbt',E.n);info('#fi',[esc(E.f.get('forn')),'Resp.: '+esc(E.f.get('resp')),esc(E.f.get('sexo')),'<b>'+E.c+'</b> lançados','Protocolo: '+(esc(prot(E.f).join(', '))||'não')]);fichaRun('#fe-fi',E);$('#fw').value='';$('#fw').focus()}
 $('#fe').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target);if(isNaN(num(f.get('preco'))))return msg('Informe o valor por animal.');E={f,n:nextFree(+f.get('brinco')),c:0,u:[],lin:+f.get('lin')||10};e.target.hidden=true;$('#fe2').hidden=false;msg('');eshow()};
 function elanca(){const p=num($('#fw').value);if(isNaN(p)||p<=0)return msg('Digite o peso do animal.');if(!canW())return;const f=E.f;
+ if(!pesoConfere(E,p,E.n)){$('#fw').select();return}
  if(A.some(a=>+a.id==E.n))E.n=nextFree(E.n);
  const a={id:String(E.n),sexo:f.get('sexo'),cat:catPeso(p),forn:f.get('forn'),preco:num(f.get('preco')),lote:f.get('lote'),ent:{d:f.get('data'),p},pes:[],venda:null,san:prot(f).length?[{d:f.get('data'),i:prot(f)}]:[]};
  A.push(a);putA(a);radd(E,'Entrada',f.get('data'),{forn:f.get('forn'),preco:num(f.get('preco')),lote:f.get('lote'),sexo:f.get('sexo'),san:prot(f),resp:f.get('resp')},{id:E.n,p});
  E.u.push(E.n);E.c++;msg('Brinco '+E.n+' lançado com '+p+' kg ('+catPeso(p).toLowerCase()+').');E.n=nextFree(E.n+1);eshow();refresh()}
 $('#fgo').onclick=elanca;$('#fw').onkeydown=e=>{if(e.key=='Enter'){e.preventDefault();elanca()}};
-$('#fund').onclick=()=>{if(!E.u.length)return;const id=E.u.pop();A=A.filter(a=>a.id!=String(id));delA(id);rund(E);E.c--;E.n=id;msg('Brinco '+id+' desfeito.');eshow();refresh()};
-$('#fend').onclick=()=>{msg('Romaneio encerrado: '+E.c+' animais lançados.');E=null;$('#fe2').hidden=true;$('#fe').hidden=false;const kr=$('#fe-resp').value;$('#fe').reset();$('#fe-data').value=today();$('#fe-resp').value=kr;$('#fe').querySelector('.prot fieldset>div:last-child').hidden=true};
+$('#fund').onclick=()=>{if(!E.u.length)return;if(!certeza('Desfazer o último animal lançado (brinco '+E.u[E.u.length-1]+')?'))return;const id=E.u.pop();A=A.filter(a=>a.id!=String(id));delA(id);rund(E);E.c--;E.n=id;msg('Brinco '+id+' desfeito.');eshow();refresh()};
+$('#fend').onclick=()=>{if(!certeza('Encerrar este romaneio de entrada com '+E.c+' animal(is)?'))return;msg('Romaneio encerrado: '+E.c+' animais lançados.');E=null;$('#fe2').hidden=true;$('#fe').hidden=false;const kr=$('#fe-resp').value;$('#fe').reset();$('#fe-data').value=today();$('#fe-resp').value=kr;$('#fe').querySelector('.prot fieldset>div:last-child').hidden=true};
 
 function check(S,bSel,wSel,outSel,goSel,label,venda){tagSet(bSel+'t',$(bSel).value.trim());const g=$(outSel),b=$(bSel).value.trim(),p=num($(wSel).value),a=findA(b);g.classList.remove('warn');$(goSel).textContent=label;
  const bad=t=>{g.textContent=t;g.classList.add('warn');return null};
@@ -309,6 +322,7 @@ function check(S,bSel,wSel,outSel,goSel,label,venda){tagSet(bSel+'t',$(bSel).val
  h+='\nGMD desde a entrada: '+gmd(a.ent,n)+' kg/dia';
  if(pt.length>1)h+='\nGMD desde a última pesagem: '+gmd(l,n)+' kg/dia';
  if(neg){h+='\nGMD negativo: confira o brinco e o peso.';g.classList.add('warn');$(goSel).textContent='Lançar mesmo assim'}
+ const al=pesoAlertas(S,p);if(al.length){h+='\nPeso fora do normal: '+al.join('; ')+'.';g.classList.add('warn');$(goSel).textContent='Lançar mesmo assim'}
  g.textContent=h;return{a,p}}
 
 let P=null;
@@ -317,29 +331,31 @@ function pnew(){$('#pb').value='';$('#pw').value='';pcalc();info('#pi',['Pesagem
 $('#fp').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target);P={d:f.get('data'),t:f.get('tipo'),s:prot(f),resp:f.get('resp'),c:0,u:[],lin:+f.get('lin')||10};e.target.hidden=true;$('#fp2').hidden=false;msg('');pnew()};
 $('#pb').oninput=$('#pw').oninput=()=>pcalc();
 function planca(){const r=pcalc();if(!r)return msg('Informe um brinco existente e o peso.');if(!canW())return;
+ if(!pesoConfere(P,r.p,r.a.id)){$('#pw').select();return}
  r.a.pes=r.a.pes||[];r.a.pes.push({d:P.d,p:r.p,t:P.t});if(P.s.length){r.a.san=r.a.san||[];r.a.san.push({d:P.d,i:P.s})}putA(r.a);
  radd(P,'Pesagem',P.d,{tipo:P.t,san:P.s,resp:P.resp},{id:r.a.id,p:r.p,g:gmd(r.a.ent,{d:P.d,p:r.p})});P.u.push(r.a.id);P.c++;msg('Brinco '+r.a.id+' pesado: '+r.p+' kg.');pnew();refresh()}
 $('#pgo').onclick=planca;
 $('#pb').onkeydown=e=>{if(e.key=='Enter'){e.preventDefault();$('#pw').focus()}};
 $('#pw').onkeydown=e=>{if(e.key=='Enter'){e.preventDefault();planca()}};
 $('#pcl').onclick=()=>{$('#pw').value='';pcalc();$('#pw').focus()};
-$('#pund').onclick=()=>{if(!P.u.length)return;const a=findA(P.u.pop());if(a){a.pes.pop();if(P.s.length&&a.san)a.san.pop();putA(a)}rund(P);P.c--;msg('Última pesagem desfeita.');pnew();refresh()};
-$('#pend').onclick=()=>{msg('Pesagem encerrada: '+P.c+' animais.');P=null;$('#fp2').hidden=true;$('#fp').hidden=false};
+$('#pund').onclick=()=>{if(!P.u.length)return;if(!certeza('Desfazer a última pesagem (brinco '+P.u[P.u.length-1]+')?'))return;const a=findA(P.u.pop());if(a){a.pes.pop();if(P.s.length&&a.san)a.san.pop();putA(a)}rund(P);P.c--;msg('Última pesagem desfeita.');pnew();refresh()};
+$('#pend').onclick=()=>{if(!certeza('Encerrar esta pesagem com '+P.c+' animal(is)?'))return;msg('Pesagem encerrada: '+P.c+' animais.');P=null;$('#fp2').hidden=true;$('#fp').hidden=false};
 
 let V=null;
 const vcalc=()=>check(V,'#vb','#vw','#vg','#vgo','Lançar venda',1);
 function vnew(){$('#vb').value='';$('#vw').value='';vcalc();info('#vi',[esc(V.comp)+' ('+esc(V.dest)+')','Resp.: '+esc(V.resp),'@ '+brl(V.arr),'<b>'+V.c+'</b> vendidos',VAL()?'Total <b>'+brl(V.t)+'</b>':'']);fichaRun('#fv-fi',V);$('#vb').focus()}
 $('#fv').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target),arr=num(f.get('arr'));if(isNaN(arr)||arr<=0)return msg('Informe o valor da @.');V={d:f.get('data'),comp:f.get('comp'),dest:f.get('dest'),arr,resp:f.get('resp'),c:0,t:0,u:[],lin:+f.get('lin')||10};e.target.hidden=true;$('#fv2').hidden=false;msg('');vnew()};
 $('#vb').oninput=$('#vw').oninput=()=>vcalc();
-function vlanca(){const r=vcalc();if(!r)return msg('Informe um brinco existente e o peso.');if(!canW())return;const val=r.p/30*V.arr;
+function vlanca(){const r=vcalc();if(!r)return msg('Informe um brinco existente e o peso.');if(!canW())return;
+ if(!pesoConfere(V,r.p,r.a.id)){$('#vw').select();return}const val=r.p/30*V.arr;
  r.a.venda={d:V.d,p:r.p,comp:V.comp,dest:V.dest,arr:V.arr,valor:val};putA(r.a);
  radd(V,'Venda',V.d,{comp:V.comp,dest:V.dest,arr:V.arr,resp:V.resp},{id:r.a.id,p:r.p,valor:val,g:gmd(r.a.ent,{d:V.d,p:r.p})});V.u.push(r.a.id);V.c++;V.t+=val;msg('Brinco '+r.a.id+' vendido'+(VAL()?': '+brl(val):'')+'.');vnew();refresh()}
 $('#vgo').onclick=vlanca;
 $('#vb').onkeydown=e=>{if(e.key=='Enter'){e.preventDefault();$('#vw').focus()}};
 $('#vw').onkeydown=e=>{if(e.key=='Enter'){e.preventDefault();vlanca()}};
 $('#vcl').onclick=()=>{$('#vw').value='';vcalc();$('#vw').focus()};
-$('#vund').onclick=()=>{if(!V.u.length)return;const a=findA(V.u.pop());if(a&&a.venda){V.t-=a.venda.valor;a.venda=null;putA(a)}V.c--;rund(V);msg('Última venda desfeita.');vnew();refresh()};
-$('#vend').onclick=()=>{msg('Venda encerrada: '+V.c+' animais, total '+brl(V.t)+'.');V=null;$('#fv2').hidden=true;$('#fv').hidden=false};
+$('#vund').onclick=()=>{if(!V.u.length)return;if(!certeza('Desfazer a última venda (brinco '+V.u[V.u.length-1]+')?'))return;const a=findA(V.u.pop());if(a&&a.venda){V.t-=a.venda.valor;a.venda=null;putA(a)}V.c--;rund(V);msg('Última venda desfeita.');vnew();refresh()};
+$('#vend').onclick=()=>{if(!certeza('Encerrar esta venda com '+V.c+' animal(is)'+(VAL()?', total '+brl(V.t):'')+'?'))return;msg('Venda encerrada: '+V.c+' animais, total '+brl(V.t)+'.');V=null;$('#fv2').hidden=true;$('#fv').hidden=false};
 
 function minfo(){tagSet('#mbt',$('#mb').value.trim());const b=$('#mb').value.trim(),a=findA(b),g=$('#mg');g.classList.remove('warn');if(!b){g.textContent='';return null}
  if(!READY){g.textContent='Carregando rebanho…';return null}
@@ -348,6 +364,7 @@ function minfo(){tagSet('#mbt',$('#mb').value.trim());const b=$('#mb').value.tri
  const l=pts(a).pop();g.textContent=catOf(a)+' · '+a.sexo+(a.lote?' · lote '+a.lote:'')+'\nÚltimo peso: '+l.p+' kg em '+fd(l.d);return a}
 $('#mb').oninput=minfo;
 $('#mgo').onclick=()=>{const a=minfo(),d=$('#md').value;if(!a||!d)return msg('Informe a data e um brinco válido.');const mr=$('#m-resp').value;if(!mr)return msg('Escolha o responsável.');if(!canW())return;
+ if(!certeza('Lançar a MORTE do brinco '+a.id+' em '+fd(d)+($('#mc').value.trim()?' (causa: '+$('#mc').value.trim()+')':'')+'?'))return;
  a.morte={d,causa:$('#mc').value.trim(),resp:mr};putA(a);let m=R.find(x=>x.tipo=='Morte'&&x.d==d);if(!m){m={id:Date.now(),tipo:'Morte',d,info:{lin:10},it:[]};R.push(m)}m.it.push({id:a.id,causa:a.morte.causa,resp:mr});putR(m);
  msg('Morte do brinco '+a.id+' lançada.');$('#mb').value='';$('#mc').value='';minfo();fichaMorte();$('#mb').focus();refresh()};
 $('#md').addEventListener('change',fichaMorte);
@@ -409,7 +426,7 @@ function preDraw(){if(!$('#fpre')||!can('importar'))return;const P=precos().diet
 window.preDraw=preDraw;{const f0=supDraw;supDraw=function(){f0();preDraw()}}
 $('#fpre').onsubmit=async e=>{e.preventDefault();if(!can('importar'))return;const f=new FormData(e.target),v=num(f.get('preco')),dt=f.get('dieta'),de=f.get('desde');
  if(!dt)return msg('Escolha a dieta.');if(!(v>=0)||String(f.get('preco')).trim()==='')return msg('Informe o preço por kg.');if(!de)return msg('Informe a data de início.');
- if(!navigator.onLine)return msg('Para mudar preço é preciso internet.');const b=e.target.querySelector('button');b.disabled=true;
+ if(!navigator.onLine)return msg('Para mudar preço é preciso internet.');if(!certeza('Salvar o preço de '+dt+': '+brl(v)+'/kg a partir de '+fd(de)+'?\nO caixa de nutrição será refeito a partir dessa data.'))return;const b=e.target.querySelector('button');b.disabled=true;
  try{PRE_LOCAL=await ISM.rpc('definir_preco_dieta',{c:ISM.cliente.id,p_dieta:dt,p_preco:v,p_desde:de});msg('Preço de '+dt+' salvo: '+brl(v)+'/kg desde '+fd(de)+'. O caixa será refeito.');$('#pre-preco').value='';preDraw();ISM.sincronizar()}
  catch(err){msg(err.message||'Não foi possível salvar o preço.')}finally{b.disabled=false}};
 document.querySelectorAll('[data-dieta]').forEach(s=>s.addEventListener('change',()=>{const o=s.closest('form').querySelector('[name=outra]').closest('.f');o.hidden=s.value!=='__o';if(!o.hidden)o.querySelector('input').focus();s.id==='fab-dieta'?fabHint():cocHint()}));
@@ -420,17 +437,19 @@ $('#coc-pasto').onchange=()=>{const n=$('#coc-pasto').value==='__n';$('#coc-new'
 $('#ffab').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target),kg=num(f.get('kg')),d=dietaOf(f);
  const resp=f.get('resp');if(!d)return msg('Informe o suplemento.');if(isNaN(kg)||kg<=0)return msg('Informe a quantidade em kg.');if(!resp)return msg('Escolha o responsável.');try{localStorage.setItem(LK+'-fab-resp',resp)}catch(er){}
  const tipo=f.get('tipo'),S0=stock()[d],e2=S0?S0.p-S0.s:0;
+ if(!certeza('Lançar '+(tipo==='Saída'?'SAÍDA':'PRODUÇÃO')+' de '+kgf(kg)+' de '+d+' em '+fd(f.get('data'))+'?'))return;
  putC('fabrica',{id:uid(),d:f.get('data'),tipo,dieta:d,kg,resp,obs:String(f.get('obs')||'').trim()});
  msg(tipo==='Saída'&&kg>e2?'Saída lançada, mas é maior que o estoque de '+d+' ('+kgf(e2)+'). Confira a produção.':(tipo==='Saída'?'Saída':'Produção')+' de '+kgf(kg)+' de '+d+' lançada.');
  $('#fab-kg').value='';$('#fab-obs').value='';$('#smes').value=f.get('data').slice(0,7);supDraw();$('#fab-kg').focus()};
 $('#fcoc').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target),kg=num(f.get('kg')),d=dietaOf(f),p=f.get('pasto');
  const est=f.get('estado');if(!p||p==='__n')return msg('Escolha o pasto ou cadastre um novo.');if(!est)return msg('Marque se o cocho estava limpo ou com sobra.');if(!d)return msg('Informe o suplemento.');if(isNaN(kg)||kg<=0)return msg('Informe os quilos colocados no cocho.');
  const resp=f.get('resp');if(!resp)return msg('Escolha o responsável.');try{localStorage.setItem(LK+'-coc-resp',resp)}catch(er){}
+ if(!certeza('Lançar '+kgf(kg)+' de '+d+' no cocho do '+p+' em '+fd(f.get('data'))+'?'))return;
  putC('cocho',{id:uid(),d:f.get('data'),pasto:p,dieta:d,kg,resp,estado:est});msg(kgf(kg)+' de '+d+' no '+p+' (cocho '+est.toLowerCase()+').');
  $('#coc-kg').value='';$('#coc-cl').checked=$('#coc-cs').checked=false;$('#smes').value=f.get('data').slice(0,7);supDraw();$('#coc-pasto').focus()};
-$('#np-add').onclick=()=>{if(!canW())return;const n=$('#np-nome').value.trim();if(!n)return msg('Digite o nome do pasto.');const a=num($('#np-area').value);
+$('#np-add').onclick=()=>{if(!canW())return;const n=$('#np-nome').value.trim();if(!n)return msg('Digite o nome do pasto.');if(!certeza('Cadastrar o pasto '+n+'?'))return;const a=num($('#np-area').value);
  savePasto(n,isNaN(a)?null:a,'');$('#np-nome').value='';$('#np-area').value='';$('#coc-new').hidden=true;supDraw();$('#coc-pasto').value=n;cocHint();$('#coc-kg').focus()};
-document.addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;if(!canW())return;arm(b,()=>{const[c,id]=b.dataset.del.split('/');delC(c,id);msg('Lançamento excluído.');redraw()})});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;if(!canW())return;if(!certeza('Excluir este lançamento? Ele sai do app e fica só no histórico.'))return;(fn=>fn())(()=>{const[c,id]=b.dataset.del.split('/');delC(c,id);msg('Lançamento excluído.');redraw()})});
 
 /* ============ PASTOS E MAPA ============ */
 const slug=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)||uid();
@@ -447,7 +466,7 @@ function mapDraw(){
 }
 let ZM=1;const zset=z=>{ZM=Math.min(4,Math.max(1,z));$('#mapimg').style.width=(ZM*100)+'%'};
 $('#zi').onclick=()=>zset(ZM*1.5);$('#zo').onclick=()=>zset(ZM/1.5);$('#zf').onclick=()=>zset(1);
-$('#fpas').onsubmit=e=>{e.preventDefault();if(!canW())return;const n=$('#pa-nome').value.trim();if(!n)return;const a=num($('#pa-area').value);savePasto(n,isNaN(a)?null:a,$('#pa-obs').value.trim());msg('Pasto '+n+' salvo.');e.target.reset();mapDraw()};
+$('#fpas').onsubmit=e=>{e.preventDefault();if(!canW())return;const n=$('#pa-nome').value.trim();if(!n)return;if(!certeza('Salvar o pasto '+n+'?'))return;const a=num($('#pa-area').value);savePasto(n,isNaN(a)?null:a,$('#pa-obs').value.trim());msg('Pasto '+n+' salvo.');e.target.reset();mapDraw()};
 
 /* ============ ATIVIDADES ============ */
 const NIV=[['Estratégico','e','Direção da fazenda: metas, investimentos e decisões do proprietário e da consultoria.'],['Tático','t','Gerência: planejamento e acompanhamento das rotinas do mês.'],['Operacional','o','Equipe de campo e serviços gerais: o trabalho do dia a dia.']];
@@ -466,9 +485,10 @@ function atvDraw(){
  const fr=$('#afr').value,vis=L.filter(a=>(!fr||rl(a).includes(fr))&&(AF==='todas'||(AF==='abertas'?a.st!==2:a.st===2))).sort((a,b)=>(a.st===2)-(b.st===2)||(a.prazo||'9').localeCompare(b.prazo||'9'));
  $('#atl').innerHTML=NIV.filter(([n])=>nivVis().includes(n)).map(([n,c,desc])=>{const it=vis.filter(a=>a.nivel===n);return'<div class="lvl '+c+'"><header><h3>'+n+'</h3><span class="mut">'+it.length+' '+(it.length===1?'atividade':'atividades')+'</span></header><p class="mut" style="margin:0 0 4px">'+desc+'</p>'+(it.length?it.map(a=>'<div class="task'+(a.st===2?' done':'')+'"><button type="button" class="st s'+(a.st||0)+'" data-st="'+a.id+'" title="Mudar situação">'+STS[a.st||0]+'</button><div><div class="tt">'+esc(a.tit)+'</div><div class="meta"><span>'+esc(a.eq)+'</span>'+(rl(a).length?'<span><b>'+esc(rl(a).join(', '))+'</b></span>':'')+(a.prazo?'<span class="'+(late(a)?'late':'')+'">'+(late(a)?'Atrasada · ':'Prazo ')+fd(a.prazo)+'</span>':'')+(a.st===2&&a.fim?'<span>Concluída em '+fd(a.fim)+'</span>':'')+(a.obs?'<span>'+esc(a.obs)+'</span>':'')+'</div></div>'+(podeGerirAtv(a)?'<button type="button" class="x" data-del="atividades/'+a.id+'">Excluir</button>':'<span></span>')+'</div>').join(''):'<p class="mut" style="margin:8px 0 0">Nada '+(AF==='concluidas'?'concluído':'pendente')+' neste nível.</p>')+'</div>'}).join('');
 }
-$('#atl').addEventListener('click',e=>{const b=e.target.closest('[data-st]');if(!b||!canW())return;const a=C.atividades.find(x=>x.id===b.dataset.st);if(!a)return;if(!podeGerirAtv(a)&&!rl(a).includes(USER.n))return msg('Só os responsáveis mudam a situação desta atividade.');const n={...a,st:((a.st||0)+1)%3};n.fim=n.st===2?today():null;putC('atividades',n);atvDraw()});
+$('#atl').addEventListener('click',e=>{const b=e.target.closest('[data-st]');if(!b||!canW())return;const a=C.atividades.find(x=>x.id===b.dataset.st);if(!a)return;if(!podeGerirAtv(a)&&!rl(a).includes(USER.n))return msg('Só os responsáveis mudam a situação desta atividade.');const n={...a,st:((a.st||0)+1)%3};if(!certeza('Mudar a atividade "'+a.tit+'" para '+STS[n.st]+'?'))return;n.fim=n.st===2?today():null;putC('atividades',n);atvDraw()});
 $('#fatv').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target),tit=String(f.get('tit')).trim();if(!tit)return msg('Descreva a atividade.');
  const resp=f.getAll('resp');if(!resp.length)return msg('Marque pelo menos um responsável.');
+ if(!certeza('Criar a atividade "'+tit+'"?'))return;
  putC('atividades',{id:uid(),tit,nivel:f.get('nivel'),eq:f.get('eq'),resp,prazo:f.get('prazo')||'',obs:String(f.get('obs')||'').trim(),st:0,criado:today()});
  msg('Atividade adicionada.');$('#atv-tit').value='';$('#atv-obs').value='';$('#atv-prazo').value='';document.querySelectorAll('#atv-resp input').forEach(c=>c.checked=false);if(AF==='concluidas')AF='abertas';atvDraw();$('#atv-tit').focus()};
 eqFill();['#fab-data','#coc-data'].forEach(s=>$(s).value=today());
@@ -578,7 +598,7 @@ function impShow(){
 async function runOps(ops,prog){let i=0,done=0,fail=0,last=null;
  const w=async()=>{while(i<ops.length){const[k,v]=ops[i++];for(let t=0;t<7;t++){try{v===null?await DB.doc(k).delete():await DB.doc(k).set(clone(v));break}catch(e){if(e&&(e.code==='unavailable'||e.code==='resource_exhausted')&&t<6){await new Promise(r=>setTimeout(r,800*(t+1)+Math.random()*700));continue}fail++;last=e;break}}done++;prog(done,ops.length)}};
  IMPB=true;try{await Promise.all([0,1,2,3].map(w))}finally{IMPB=false;redraw()}return{fail,last}}
-async function impCommit(){if(!canW()||!IMP||!IMP.plan)return;const P=IMP.plan,b=$('#imp-go');b.disabled=true;$('#imp-x').disabled=true;
+async function impCommit(){if(!canW()||!IMP||!IMP.plan)return;if(!certeza('Gravar esta importação no app?'))return;const P=IMP.plan,b=$('#imp-go');b.disabled=true;$('#imp-x').disabled=true;
  const rec={id:P.ID,d:today(),quando:new Date().toISOString(),arquivo:IMP.name,cnt:P.cnt};
  if(!DB){const m=new Map(A.map(a=>[a.id,a]));P.animals.forEach(a=>m.set(a.id,a));A=[...m.values()];R.push(...P.roms);C.financeiro.push(...P.fin);C.importacoes.push(rec);saveLocal();impDone(0);return}
  const ops=[...P.animals.map(a=>['animais/'+a.id,a]),...P.roms.map(r=>['romaneios/'+r.id,r]),...P.fin.map(x=>['financeiro/'+x.id,x])];
@@ -594,7 +614,7 @@ async function impUndo(id){if(!canW())return;const ops=[];
  msg('Desfazendo importação…');const r=await runOps(ops,()=>{});msg(r.fail?'Desfeito com '+r.fail+' falhas. Tente desfazer de novo.':'Importação desfeita.')}
 function impHist(){prepDraw();const L=(C.importacoes||[]).slice().sort((a,b)=>(b.quando||'').localeCompare(a.quando||''));
  $('#imp-hist').innerHTML=L.length?L.map(x=>{const c=x.cnt||{},parts=[[c.animais,'animais'],[c.pesagens,'pesagens'],[c.vendas,'vendas'],[c.mortes,'mortes'],[c.financeiro,'lanç. financeiros']].filter(p=>p[0]).map(p=>p[0]+' '+p[1]);return'<div class="rowl"><span class="d">'+fd(x.d).slice(0,5)+'</span><span><b>'+esc(x.arquivo||'Planilha')+'</b><span class="sub2">'+(parts.join(' · ')||'sem registros')+(x.falhas?' · '+x.falhas+' falhas':'')+'</span></span><span></span><button type="button" class="x" data-undo="'+esc(x.id)+'">Desfazer</button></div>'}).join(''):'<p class="mut">Nenhuma importação ainda.</p>'}
-document.addEventListener('click',e=>{const b=e.target.closest('[data-undo]');if(b)arm(b,()=>impUndo(b.dataset.undo));const g=e.target.closest('[data-go]');if(g){go(g.dataset.go);window.scrollTo(0,0)}});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-undo]');if(b&&certeza('Desfazer esta importação? Tudo o que ela trouxe sai do app.'))impUndo(b.dataset.undo);const g=e.target.closest('[data-go]');if(g){go(g.dataset.go);window.scrollTo(0,0)}});
 
 
 /* ============ USUÁRIOS E PERFIS (simulação no protótipo) ============ */
@@ -650,6 +670,7 @@ $('#fcx').onsubmit=e=>{e.preventDefault();if(!canW()||!can('fin_lancar'))return;
  if(!f.get('data'))return msg('Informe a data.');if(!item)return msg(f.get('item')===OUTRO?'Digite o nome do item novo.':'Informe o item.');if(!(v>0))return msg('Informe o valor.');
  const doc={id:uid(),d:f.get('data'),tipo:f.get('tipo'),grupo:f.get('grupo'),sub:String(f.get('sub')||'').trim(),item,valor:v,obs:String(f.get('obs')||'').trim(),manual:true,por:USER.n};
  const forn=String(f.get('forn')||'').trim(),nf=String(f.get('nf')||'').trim();if(forn)doc.forn=forn;if(nf)doc.nf=nf;
+ if(!certeza('Lançar '+doc.tipo.toUpperCase()+' de '+brl(v)+' em '+fd(doc.d)+'?\n'+doc.grupo+(doc.sub?' · '+doc.sub:'')+' · '+item+(forn?'\nFornecedor: '+forn:'')+(nf?' · NF '+nf:'')))return;
  putC('financeiro',doc);
  msg(f.get('tipo')+' de '+brl(v)+' lançada no caixa.');['#cx-valor','#cx-novo','#cx-obs','#cx-forn','#cx-nf'].forEach(q=>$(q).value='');$('#cx-item').value='';cxDraw();finDraw()};
 
