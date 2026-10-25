@@ -219,6 +219,18 @@ caso('atividade sem repetição continua concluída', 'italo',
      "update public.atividades set situacao=2, concluida_em='2026-10-23' where titulo='Consertar cerca';\n"
      "select situacao from public.atividades where titulo='Consertar cerca'", 2)
 
+print('--- Funções de administração fechadas (migração 010)')
+caso('vaqueiro não consegue se dar o perfil ISM', 'genisval', "select public.vincular_usuario('genisval@barramas.ism','Fazenda Barramas','Genisval','x','{ISM}')", 'erro', aal='aal1')
+caso('proprietário não bloqueia ninguém por função de administração', 'wilmington', "select public.bloquear_usuario('Fazenda Barramas','Josiane')", 'erro')
+caso('ninguém dispensa duas etapas por conta própria', 'josiane', "select public.dispensar_duas_etapas('Fazenda Barramas','Josiane')", 'erro')
+caso('ninguém se libera ação extra', 'josiane', "select public.liberar_acao('Fazenda Barramas','Josiane','importar')", 'erro')
+caso('preço das dietas de outra fazenda não vaza', 'estranho', f"select public.preco_dieta({B}, 'Dieta 1', current_date)", 'erro')
+caso('ninguém refaz a nutrição na mão', 'italo', f"select public.recalcular_nutricao({B}, current_date)", 'erro')
+caso('ninguém recria a demonstração pelo app', 'italo', "select public.recriar_demonstracao()", 'erro')
+cod, out = rodar("begin; set local role anon; select public.vincular_usuario('genisval@barramas.ism','Fazenda Barramas','Genisval','x','{ISM}'); rollback;")
+ok = cod != 0; falhas += 0 if ok else 1
+print(('OK   ' if ok else 'FALHOU ') + '[anon] sem login não chama função de administração')
+
 print('--- Sem login')
 cod, out = rodar("begin; set local role anon; select count(*) from public.animais; rollback;")
 ok = cod != 0
