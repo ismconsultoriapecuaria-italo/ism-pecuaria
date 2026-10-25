@@ -39,6 +39,13 @@ do $$ begin
   execute 'alter default privileges in schema public revoke execute on functions from anon, authenticated';
 exception when others then null; end $$;
 
+-- 3b) Tabelas novas (Supabase dá tudo para anon/authenticated por padrão): fecha e libera só leitura onde precisa
+revoke all on public.grupos, public.senha_provisoria from anon, authenticated;
+grant select on public.grupos to authenticated;
+do $$ begin
+  execute 'alter default privileges in schema public revoke all on tables from anon, authenticated';
+exception when others then null; end $$;
+
 -- 4) Conferência: lista o que ficou liberado para quem está logado ou para o público
 select p.proname as funcao_liberada
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
