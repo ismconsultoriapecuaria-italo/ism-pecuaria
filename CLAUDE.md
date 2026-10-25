@@ -32,6 +32,9 @@ App PWA (Android) de gestão de fazendas da ISM Consultoria Pecuária. Desenvolv
 - Atividades: estratégico só ISM/Proprietário; tático também Administrativo/Gerente; operacional todos. Quem não gerencia só muda a situação das próprias.
 - Categoria por peso: <300 Bezerro, <400 Garrote, <480 Boi magro, ≥480 Boi gordo. @ = peso ÷ 30.
 
+## Segurança do banco (migração 010)
+- Funções e tabelas do esquema public nascem FECHADAS (sem EXECUTE/ALL para public, anon, authenticated). Toda função nova que o app chama precisa de `grant execute ... to authenticated`; toda tabela nova precisa de RLS + `grant` explícito. Funções de administração (vincular_usuario, bloquear_usuario, dispensar_duas_etapas, liberar_acao, recriar_demonstracao, recalcular_nutricao, preco_dieta) não são liberadas: só rodam no SQL Editor.
+
 ## Pendências técnicas (combinado com o Italo em 25/10/2026: não fazer agora, mas lembrá-lo)
 - Ligar o backup semanal: segredos `SUPABASE_DB_URL` e `BACKUP_SENHA` no GitHub (é o mais prioritário).
 - Registro de migrações aplicadas no banco + aviso no app quando faltar alguma; depois, aplicar migrações pelo GitHub Actions.
