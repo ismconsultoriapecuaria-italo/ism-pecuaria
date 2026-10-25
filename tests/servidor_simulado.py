@@ -116,7 +116,13 @@ class H(SimpleHTTPRequestHandler):
         if not cl or 'sub' not in cl: raise ErroBanco('42501', 'permission denied')
         if tab.startswith('rpc/') and metodo == 'POST':
             args = s.corpo() or {}
-            lista = ', '.join(f"{ident(k)} => {lit(json.dumps(v) if isinstance(v, (dict, list)) else v)}" for k, v in args.items())
+            def arg(v):
+                if v is None: return 'null'
+                if isinstance(v, bool): return 'true' if v else 'false'
+                if isinstance(v, list): return 'array[' + ', '.join(lit(x) for x in v) + ']::text[]'
+                if isinstance(v, dict): return lit(json.dumps(v)) + '::jsonb'
+                return lit(v)
+            lista = ', '.join(f"{ident(k)} => {arg(v)}" for k, v in args.items())
             r = psql(f"select to_json(public.{ident(tab[4:])}({lista}))", cl)
             return s.resp(200, json.loads(r) if r else None)
         t = ident(tab)

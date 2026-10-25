@@ -3,7 +3,7 @@
 importScripts('js/versao.js');
 const CACHE = 'ism-pecuaria-' + self.ISM_VERSAO;
 const ARQUIVOS = ['./', 'index.html', 'manifest.webmanifest', 'modelo-importacao.xlsx',
-  'js/config.js', 'js/versao.js', 'js/cofre.js', 'js/nuvem.js', 'js/sinc.js', 'js/ponte.js', 'js/entrada.js', 'js/telas.js', 'js/edicao.js',
+  'js/config.js', 'js/versao.js', 'js/cofre.js', 'js/nuvem.js', 'js/sinc.js', 'js/ponte.js', 'js/ism.js', 'js/entrada.js', 'js/telas.js', 'js/edicao.js',
   'img/ism-branco.png', 'img/ism.png', 'icons/icone-192.png', 'icons/icone-512.png'];
 const EXTERNOS = ['https://cdnjs.cloudflare.com/', 'https://fonts.googleapis.com/', 'https://fonts.gstatic.com/'];
 

@@ -15,7 +15,8 @@ App PWA (Android) de gestão de fazendas da ISM Consultoria Pecuária. Desenvolv
 - Multi-cliente: `clientes.modulos` = pacote de abas; marca/mapa/caixa por cliente na tabela `painel`.
 
 ## Regras de negócio (decididas com o usuário)
-- Só a ISM cria e bloqueia usuários (via dashboard + `vincular_usuario` / `bloquear_usuario`).
+- Hierarquia: cliente da ISM (`grupos`, ex.: Wilmington Viana) → fazendas (`clientes`, com `grupo_id`) → pessoas (`membros`).
+- Só a ISM cria e bloqueia usuários, pelo Painel da ISM no app (`js/ism.js`, migração 008: `ism_clientes`, `ism_salvar_cliente`, `ism_salvar_fazenda`, `ism_pessoas`, `ism_criar_pessoa`, `ism_editar_pessoa`, `ism_redefinir_senha`, `ism_zerar_autenticador`; todas exigem ISM com duas etapas). A ISM cai no painel ao entrar com login e senha e ao "Voltar ao painel"; reabrindo o app vai direto à última fazenda. Pessoa nova recebe senha provisória (`senha_provisoria`) e cria a própria no primeiro acesso. Fazenda nova copia o plano de contas da Barramas para o painel `plano` (só nomes).
 - Proprietário e administrativo lançam tudo. ISM e proprietário editam qualquer lançamento (romaneios de entrada, pesagem, venda e morte, caixa, fábrica, cocho), em `js/edicao.js`; administrativo edita romaneios, fábrica e cocho, mas não o caixa (migração 003).
 - Duas etapas: ISM decide por pessoa com `dispensar_duas_etapas(cliente, nome)` (migração 004). Josiane (Barramas) está dispensada desde 23/10/2026.
 - Ações a mais por pessoa: `liberar_acao(cliente, nome, acao)` grava em `membros.extras` (migração 006); no app vira `USER.x`, somado em `can()`. Josiane (Barramas) edita o caixa (`fin_editar`) desde 24/10/2026.

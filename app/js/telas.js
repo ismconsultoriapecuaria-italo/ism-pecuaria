@@ -580,7 +580,7 @@ async function impRead(name,getBuf,getRows){
   if(!Object.keys(S).length){$('#imp-prev').innerHTML='<div class="card empty"><b>Nenhuma aba do modelo encontrada</b>O arquivo precisa ter abas chamadas Entradas, Pesagens, Vendas, Mortes ou Financeiro. Baixe o modelo e copie os dados para ele.</div>';return}
   IMP={name:f.name,S,skip:true};impShow()}
  catch(er){$('#imp-prev').innerHTML='<div class="card empty"><b>Não consegui ler esse arquivo</b>'+(er&&er.code==='lib'?'O leitor de planilhas não carregou. Confira a internet e tente de novo.':er&&er.code==='fetch'?'A planilha preparada não pôde ser baixada. Recarregue o app e tente de novo.':'Salve a planilha como .xlsx no Excel e tente de novo.')+'</div>'}}
-function impCtx(){return{A,today:today(),BM,skipBase:IMP.skip,RESP,grupos:[...new Set(D.k.map(r=>r[1]).concat((C.financeiro||[]).map(x=>x.grupo)))]}}
+function impCtx(){return{A,today:today(),BM,skipBase:IMP.skip,RESP,grupos:[...new Set(D.k.map(r=>r[1]).concat(((ISM.painel&&ISM.painel().plano)||[]).map(r=>r[1]),(C.financeiro||[]).map(x=>x.grupo)))]}}
 function impShow(){
  if(!READY){$('#imp-prev').innerHTML='<div class="card empty">Aguarde o app carregar os dados para conferir a planilha.</div>';return}
  const P=IMP.plan=impPlan(IMP.S,impCtx()),keys=Object.keys(P.st).filter(k=>IMP.S[k]&&IMP.S[k].length>1);
@@ -643,7 +643,7 @@ const podeGerirAtv=a=>can('atv_todas')||(can('atv_tatico')&&a.nivel!=='Estratég
 /* ============ LANÇAMENTO MANUAL NO CAIXA ============ */
 /* Árvore do caixa: tipo → centro → subcentro → itens, da planilha de caixa e dos lançamentos já feitos */
 function cxArvore(tp){const T={};const add=(g,sb,it)=>{if(!g)return;((T[g]=T[g]||{})[sb||'']=T[g][sb||'']||new Set());if(it)T[g][sb||''].add(it)};
- D.k.filter(r=>r[0]===tp).forEach(r=>add(r[1],r[2],r[3]));(C.financeiro||[]).filter(x=>x.tipo===tp).forEach(x=>add(x.grupo,x.sub,x.item));return T}
+ D.k.filter(r=>r[0]===tp).forEach(r=>add(r[1],r[2],r[3]));((ISM.painel&&ISM.painel().plano)||[]).filter(r=>r[0]===tp).forEach(r=>add(r[1],r[2],r[3]));(C.financeiro||[]).filter(x=>x.tipo===tp).forEach(x=>add(x.grupo,x.sub,x.item));return T}
 function cxFornecedores(){return[...new Set((C.financeiro||[]).map(x=>String(x.forn||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
 const OUTRO='__outro';
 /* Preenche os selects em cascata. el = {grupo,sub,item,novoF}; val = valores atuais */

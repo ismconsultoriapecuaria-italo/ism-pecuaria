@@ -63,7 +63,7 @@
     const c = contas[uid] = Object.assign(contas[uid] || {}, { uid, email, login, refresh: s.refresh_token, access: s.access_token, expira: s.expira });
     c.verificador = await CF.resumoSenha(senha);
     await salvarContas();
-    await garantirDuasEtapas(c);
+    await garantirDuasEtapas(c, { painel: true });
   }
 
   // ---------------- tokens ----------------
@@ -107,21 +107,22 @@
     return { exigir, forte, ism: ism[0] || null, membros: ativos, bloqueado: !ism.length && !ativos.length };
   }
 
-  async function garantirDuasEtapas(c) {
+  async function garantirDuasEtapas(c, op = {}) {
     const g = await perfisGerais(c.access, c.uid);
     if (g.bloqueado) {
       c.refresh = null; c.access = null; await salvarContas();
       throw new Error('Seu acesso não está liberado. Fale com a ISM.');
     }
+    c.ism = !!g.ism; c.nomeIsm = g.ism ? g.ism.nome : ''; await salvarContas();
     const aal = N.lerToken(c.access).aal;
-    if (!g.exigir || !g.forte || aal === 'aal2') return abrirConta(c.uid);
+    if (!g.exigir || !g.forte || aal === 'aal2') return abrirConta(c.uid, op);
     const u = await N.usuario(c.access);
     const fator = (u.factors || []).find(f => f.factor_type === 'totp' && f.status === 'verified');
-    if (fator) return telaCodigo(c, fator.id);
+    if (fator) return telaCodigo(c, fator.id, null, op);
     // ainda não tem: cadastra o aplicativo autenticador
     for (const f of (u.factors || []).filter(f => f.status !== 'verified')) await N.removerFator(c.access, f.id);
     const novo = await N.inscreverTotp(c.access);
-    telaCodigo(c, novo.id, novo.totp);
+    telaCodigo(c, novo.id, novo.totp, op);
   }
 
   // o Supabase manda o QR como "data:image/svg+xml;utf-8,<svg...>" sem codificar
@@ -131,7 +132,7 @@
     if (q.trim().startsWith('<svg')) return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(q);
     return q;
   }
-  function telaCodigo(c, fatorId, totp) {
+  function telaCodigo(c, fatorId, totp, op = {}) {
     tela(`<h2 class="ct">Verificação em duas etapas</h2>
       ${totp ? `<p class="hint">Seu perfil vê dados financeiros, então pede uma segunda proteção. Instale um aplicativo autenticador
         (Google Authenticator ou Microsoft Authenticator), toque em "adicionar" e leia o código abaixo.</p>
@@ -151,7 +152,7 @@
         const s = await N.verificar(c.access, fatorId, d.id, f.cod.value);
         Object.assign(c, { refresh: s.refresh_token, access: s.access_token, expira: s.expira });
         await salvarContas();
-        await abrirConta(c.uid);
+        await abrirConta(c.uid, op);
       } catch (err) { ocupado(b, false); aviso(err.message, 'erro'); f.cod.select(); }
     };
   }
@@ -186,12 +187,58 @@
     return { user, perm, nomes: todos.filter(x => x.ativo).map(x => x.nome), quando: Date.now() };
   }
 
+  // senha provisória (criada pela ISM): a pessoa cria a própria antes de continuar
+  async function precisaTrocarSenha(c) {
+    try { return !!(await N.funcao(await tokenDe(c.uid), 'preciso_trocar_senha', {})); } catch (e) { return false; }
+  }
+  function telaNovaSenha(c) {
+    return new Promise(ok => {
+      tela(`<h2 class="ct">Crie a sua senha</h2>
+        <p class="hint">Você entrou com a senha provisória que a ISM passou. Agora crie a sua: pelo menos 8 caracteres, com letras e números. Não conte para ninguém.</p>
+        <form id="fnova" class="eform"><label>Nova senha<input name="s1" type="password" autocomplete="new-password" required></label>
+        <label>Repita a nova senha<input name="s2" type="password" autocomplete="new-password" required></label>
+        <button class="btn wide" type="submit">Salvar minha senha</button></form><p id="entrada-aviso" class="eaviso"></p>`);
+      const f = $('#fnova'); f.s1.focus();
+      f.onsubmit = async e => {
+        e.preventDefault(); const a = f.s1.value, b = f.querySelector('button');
+        if (a.length < 8 || !/[a-zA-Z]/.test(a) || !/\d/.test(a)) return aviso('A senha precisa ter pelo menos 8 caracteres, com letras e números.', 'erro');
+        if (a !== f.s2.value) return aviso('As duas senhas não conferem.', 'erro');
+        ocupado(b, true, 'Salvando…');
+        try {
+          const t = await tokenDe(c.uid);
+          await N.trocarSenha(t, a); await N.funcao(t, 'senha_trocada', {});
+          c.verificador = await CF.resumoSenha(a); await salvarContas(); ok();
+        } catch (err) { ocupado(b, false); aviso(err.message, 'erro'); }
+      };
+    });
+  }
+
+  // contexto que o painel da ISM usa para desenhar e agir
+  function ctxPainel(c, op) {
+    return {
+      tela, aviso, ocupado, esc, $, nome: c.nomeIsm || 'ISM', dominio: CFG.DOMINIO_LOGIN || 'ismpecuaria.app',
+      rpc: async (nome, args) => N.funcao(await tokenDe(c.uid), nome, args),
+      recarregarFazendas: () => carregarClientes(c),
+      abrirFazenda: async id => {
+        let cli = (c.clientes || []).find(x => x.id === id);
+        if (!cli) { await carregarClientes(c); cli = (c.clientes || []).find(x => x.id === id); }
+        if (!cli) return aviso('Fazenda não encontrada.', 'erro');
+        try { await abrirCliente(c, cli, op); } catch (e) { aviso(e.message, 'erro'); }
+      },
+      semInternet: () => abrirConta(c.uid, Object.assign({}, op, { escolher: true, semPainel: true })),
+      sair: async () => { aparelho.ultimo = null; await salvarAparelho(); location.reload(); }
+    };
+  }
+
   async function abrirConta(uid, op = {}) {
     const c = contas[uid];
     aparelho.ultimo = uid; await salvarAparelho();
     let lista = c.clientes || [];
     if (!op.offline && navigator.onLine) {
       try { lista = await carregarClientes(c); } catch (e) { if (!e.rede) throw e; }
+      if (!op.senhaOk && await precisaTrocarSenha(c)) { await telaNovaSenha(c); op = Object.assign({}, op, { senhaOk: true }); }
+      // ISM: ao entrar com login e senha (ou voltando ao painel) começa pelo painel; reabrindo o app, volta à última fazenda
+      if (c.ism && !op.semPainel && window.ISM_PAINEL && (op.painel || !c.cliente)) return window.ISM_PAINEL.abrir(ctxPainel(c, Object.assign({}, op, { painel: false })));
     }
     if (!lista.length) throw new Error('Nenhuma fazenda liberada para você. Fale com a ISM.');
     const salvo = lista.find(x => x.id === c.cliente);
@@ -348,7 +395,7 @@
       <p class="hint">${esc(window.ISM.user.f)} · ${esc(cli.nome)}<br>${st.pendentes ? st.pendentes + ' lançamento(s) esperando envio.' : 'Tudo enviado.'}
       ${st.ultimaSinc ? ' Última sincronização: ' + st.ultimaSinc.toLocaleString('pt-BR') + '.' : ''}</p>
       <button class="btn wide" data-a="sinc">Sincronizar agora</button>
-      ${varios ? '<button class="btn ghost wide" data-a="faz">Trocar de fazenda</button>' : ''}
+      ${c.ism ? '<button class="btn ghost wide" data-a="faz">Voltar ao painel da ISM</button>' : varios ? '<button class="btn ghost wide" data-a="faz">Trocar de fazenda</button>' : ''}
       ${(cli.modulos || []).includes('demonstracao') && c.perfis && c.perfis[cli.id] && c.perfis[cli.id].user.r.includes('ISM') ?
         '<p class="hint" style="margin:6px 0 0"><b>Ver o app como</b> (só na demonstração):</p><div class="ulist">' +
         [{ r: '', n: 'ISM (você)' }].concat(PERFIS_DEMO).map(p => '<button type="button" class="ucard" data-como="' + esc(p.r) + '"><b>' + esc(p.r || 'ISM') + '</b><span>' + esc(p.r ? p.n : 'ver tudo') + '</span></button>').join('') + '</div>' : ''}

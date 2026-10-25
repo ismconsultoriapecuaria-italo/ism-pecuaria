@@ -163,6 +163,43 @@ caso('vaqueiro não muda preço', 'genisval', preco, 'erro', aal='aal1')
 caso('administrativo não muda preço', 'josiane', preco, 'erro')
 caso('ISM sem duas etapas não muda preço', 'italo', preco, 'erro', aal='aal1')
 
+print('--- Painel da ISM (clientes, fazendas e pessoas)')
+novo = ("select public.ism_salvar_cliente(null, 'Cliente Novo');\n"
+        "select public.ism_salvar_fazenda(null, (select id from public.grupos where nome='Cliente Novo'), 'Fazenda Nova', '{rebanho,suplemento}');\n"
+        "select public.ism_criar_pessoa((select id from public.clientes where nome='Fazenda Nova'), 'Zé Novo', 'ze.novo@ismpecuaria.app', 'provisoria1', 'Vaqueiro', '{Vaqueiro}');\n")
+caso('ISM cria cliente, fazenda e pessoa (com senha provisória)', 'italo', novo +
+     "select string_agg(p->>'nome'||':'||(p->>'login')||':'||(p->>'provisoria'),';') from jsonb_array_elements(public.ism_pessoas((select id from public.clientes where nome='Fazenda Nova'))) p", 'Zé Novo:ze.novo:true')
+cod, out = rodar("begin; set local role authenticated;"
+                 f"do $x$ begin perform set_config('request.jwt.claims', '{claims('italo','aal2')}', true); end $x$;\n{novo}"
+                 "reset role; select count(*) from auth.users u join auth.identities i on i.user_id=u.id where u.email='ze.novo@ismpecuaria.app' and u.encrypted_password = crypt('provisoria1', u.encrypted_password) and u.aud='authenticated' and u.confirmation_token=''; rollback;")
+ok = cod == 0 and out.splitlines()[-1] == '1'; falhas += 0 if ok else 1
+print(('OK   ' if ok else 'FALHOU ') + '[ism] login novo entra com a senha provisória (usuário e identidade criados)' + ('' if ok else f'  -> {out[:300]}'))
+caso('painel lista o cliente com a fazenda e 1 pessoa', 'italo', novo +
+     "select f->>'nome'||':'||(f->>'pessoas') from jsonb_array_elements(public.ism_clientes()) g, jsonb_array_elements(g->'fazendas') f where g->>'nome'='Cliente Novo'", 'Fazenda Nova:1')
+caso('mesmo login em outra fazenda só liga, sem nova senha', 'italo', novo +
+     f"select public.ism_criar_pessoa({B}, 'Zé Novo', 'ze.novo@ismpecuaria.app', null, 'Vaqueiro', '{{Vaqueiro}}')->>'novo'", 'false')
+caso('senha provisória curta é recusada', 'italo',
+     f"select public.ism_criar_pessoa({B}, 'Curto', 'curto@ismpecuaria.app', '123', '', '{{Vaqueiro}}')", 'erro')
+caso('não dá perfil ISM pelo painel', 'italo',
+     f"select public.ism_criar_pessoa({B}, 'Esperto', 'esperto@ismpecuaria.app', 'provisoria1', '', '{{ISM}}')", 'erro')
+caso('ISM edita perfil, ação extra, duas etapas e bloqueio', 'italo',
+     "select public.ism_editar_pessoa((select id from public.membros where nome='Genisval'), 'Vaqueiro chefe', '{Vaqueiro,Serviços gerais}', '{fin_ver}', true, false);\n"
+     "select funcao||'|'||array_to_string(perfis,',')||'|'||array_to_string(extras,',')||'|'||dispensa_mfa||'|'||ativo from public.membros where nome='Genisval'",
+     'Vaqueiro chefe|Vaqueiro,Serviços gerais|fin_ver|true|false')
+caso('ação extra desconhecida é recusada', 'italo',
+     "select public.ism_editar_pessoa((select id from public.membros where nome='Genisval'), '', '{Vaqueiro}', '{voar}', false, true)", 'erro')
+caso('ISM redefine senha e ela vira provisória', 'italo',
+     "select public.ism_redefinir_senha((select id from public.membros where nome='Genisval'), 'outrasenha9');\n"
+     f"select p->>'provisoria' from jsonb_array_elements(public.ism_pessoas({B})) p where p->>'nome'='Genisval'", 'true')
+caso('não redefine a senha de quem é ISM', 'italo',
+     f"select public.ism_redefinir_senha((select id from public.membros where nome='Italo' and cliente_id={B}), 'outrasenha9')", 'erro')
+caso('proprietário não usa o painel da ISM', 'wilmington', "select public.ism_clientes()", 'erro')
+caso('proprietário não cria pessoa', 'wilmington',
+     f"select public.ism_criar_pessoa({B}, 'Intruso', 'intruso@ismpecuaria.app', 'provisoria1', '', '{{Vaqueiro}}')", 'erro')
+caso('ISM sem duas etapas não usa o painel', 'italo', "select public.ism_clientes()", 'erro', aal='aal1')
+caso('proprietário não lê a lista de clientes da ISM', 'wilmington', conta('grupos'), 0)
+caso('quem não tem senha provisória não precisa trocar', 'genisval', "select public.preciso_trocar_senha()", 'f', aal='aal1')
+
 print('--- Sem login')
 cod, out = rodar("begin; set local role anon; select count(*) from public.animais; rollback;")
 ok = cod != 0
