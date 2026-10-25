@@ -60,6 +60,16 @@ with sync_playwright() as pw:
     ok(p.evaluate("R.length") == 64, 'romaneios carregados')
     ok('Barramas' in p.evaluate("document.querySelector('.brand').innerHTML"), 'logo da Barramas no topo')
     ok(p.evaluate("!!document.querySelector('#mapimg').src.startsWith('data:image')"), 'mapa da fazenda carregado')
+    # preço das dietas (só ISM) → o cocho vira despesa de nutrição no caixa
+    p.click('#nav button[data-v=sup]'); p.wait_for_selector('#fpre', state='visible')
+    p.select_option('#pre-dieta', 'Dieta 1'); p.fill('#pre-preco', '2,00'); p.fill('#pre-desde', '2026-10-01'); p.click('#fpre button.btn')
+    kg1 = float(sql("select coalesce(sum(kg),0) from supl_cocho where dieta='Dieta 1' and excluido_em is null and data>='2026-10-01'"))
+    ok(esperar(lambda: sql("select valor from financeiro where origem='cocho' and item='Dieta 1' and excluido_em is null") == '%.2f' % (kg1 * 2)), 'preço salvo e cocho de outubro lançado no caixa (%.0f kg × R$ 2,00)' % kg1)
+    ok(sql("select grupo||'|'||sub||'|'||data from financeiro where origem='cocho' and item='Dieta 1'") == 'REBANHO CORTE|NUTRIÇÃO|2026-10-01', 'despesa em REBANHO CORTE · NUTRIÇÃO, competência outubro')
+    ok(esperar(lambda: p.evaluate("C.financeiro.some(x=>x.item==='Dieta 1'&&!x.manual&&Math.abs(x.valor-%f)<0.01)" % (kg1 * 2))), 'despesa automática chega ao app')
+    ok(esperar(lambda: 'R$' in p.inner_text('#pret') and 'sem preço' in p.inner_text('#pret')), 'tabela de preços mostra a dieta com preço e as sem preço')
+    p.evaluate("putC('cocho',{id:uid(),d:'2026-10-23',pasto:C.pastos[0].nome,dieta:'Dieta 1',kg:50,resp:USER.n})")
+    ok(esperar(lambda: sql("select valor from financeiro where origem='cocho' and item='Dieta 1' and excluido_em is null") == '%.2f' % ((kg1 + 50) * 2)), 'trato novo no cocho soma na despesa do mês')
     ok(p.evaluate("document.querySelector('#f-det').innerText.includes('Receitas')"), 'painel financeiro desenhado')
     # lança no caixa
     p.evaluate("""putC('financeiro',{id:uid(),d:'2026-10-20',tipo:'Despesa',grupo:'ADMINISTRAÇÃO',sub:'',item:'Teste e2e',valor:123.45,obs:'',manual:true,por:USER.n})""")

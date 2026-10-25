@@ -114,6 +114,11 @@ class H(SimpleHTTPRequestHandler):
     def rest(s, metodo, tab, q):
         cl = lertoken(s.headers.get('Authorization'))
         if not cl or 'sub' not in cl: raise ErroBanco('42501', 'permission denied')
+        if tab.startswith('rpc/') and metodo == 'POST':
+            args = s.corpo() or {}
+            lista = ', '.join(f"{ident(k)} => {lit(json.dumps(v) if isinstance(v, (dict, list)) else v)}" for k, v in args.items())
+            r = psql(f"select to_json(public.{ident(tab[4:])}({lista}))", cl)
+            return s.resp(200, json.loads(r) if r else None)
         t = ident(tab)
         if metodo == 'GET':
             sel = q.get('select', ['*'])[0]

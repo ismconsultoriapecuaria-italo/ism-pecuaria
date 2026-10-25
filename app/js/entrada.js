@@ -272,8 +272,11 @@
       aviso: t => { const e = document.getElementById('toast'); if (!e) return; e.textContent = t; e.hidden = false; clearTimeout(e._t); e._t = setTimeout(() => e.hidden = true, 6000); },
       estado: st => { ultimoEstado = st; desenharEstado(st); },
       menu: () => menuConta(c, cli),
-      sincronizar: () => window.Sinc.sincronizarAgora()
+      sincronizar: () => window.Sinc.sincronizarAgora(),
+      painel: () => window.Sinc.painel(),
+      rpc: async (nome, args) => N.funcao(await tokenDe(c.uid), nome, args)
     };
+    window.Sinc.aoPainel(() => { if (window.ISM.iniciado && window.preDraw) window.preDraw(); });
     // marca do cliente
     document.title = cli.nome + ' · ISM Pecuária';
     document.querySelectorAll('[data-cli-nome]').forEach(e => e.textContent = cli.nome);

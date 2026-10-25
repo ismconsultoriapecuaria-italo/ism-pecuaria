@@ -502,6 +502,17 @@ label.btn{color:var(--acc-ink)}
   <div class="card"><h3 class="sub" id="coc-rt">Resumo por pasto</h3><div class="tw" id="cocr"></div></div>
   <div class="card"><h3 class="sub">Lançamentos do mês</h3><div class="list" id="cocl"></div></div>
  </div>
+ <form id="fpre" class="card" data-perm="importar">
+  <p class="eyebrow">Só a ISM vê</p><h2 class="ct">Preço das dietas (R$/kg)</h2>
+  <p class="hint">O que vai para o cocho entra no caixa como despesa de nutrição, por competência: kg do mês × preço da dieta, um lançamento por mês e por dieta. Preço novo vale a partir da data escolhida e refaz os meses seguintes. Tratos antes do primeiro preço não entram.</p>
+  <div class="fg">
+   <div class="f"><label for="pre-dieta">Dieta</label><select id="pre-dieta" name="dieta"></select></div>
+   <div class="f"><label for="pre-preco">Preço por kg, R$</label><input id="pre-preco" name="preco" inputmode="decimal" required></div>
+   <div class="f"><label for="pre-desde">Vale a partir de</label><input id="pre-desde" name="desde" type="date" required></div>
+  </div>
+  <button class="btn">Salvar preço</button>
+  <div class="tw" id="pret" style="margin-top:14px"></div>
+ </form>
 </section>
 
 <!-- ATIVIDADES -->

@@ -140,6 +140,29 @@ print(('OK   ' if ok else 'FALHOU ') + '[ism] ação desconhecida é recusada')
 rodar("select public.liberar_acao('Fazenda Barramas', 'Josiane', 'fin_editar', false)")
 caso('liberação retirada: volta a não editar', 'josiane', upd_fin, '')
 
+print('--- Cocho lança a nutrição no caixa (competência)')
+preco = f"select public.definir_preco_dieta({B}, 'Proteinado', 2.5, '2026-03-01')"
+auto = f"select coalesce(string_agg(item||'|'||valor||'|'||sub, ';'), 'nada') from public.financeiro where origem='cocho' and excluido_em is null"
+caso('sem preço, trato no cocho não gera despesa', 'italo', ins_cocho + ";\n" + auto, 'nada')
+caso('com preço, 200 kg × R$ 2,50 = R$ 500 em NUTRIÇÃO', 'italo', preco + ";\n" + ins_cocho + ";\n" + auto, 'Proteinado|500.00|NUTRIÇÃO')
+caso('dois tratos no mês viram um lançamento só', 'italo', preco + ";\n" + ins_cocho + ";\n" + ins_cocho + ";\n" + auto, 'Proteinado|1000.00|NUTRIÇÃO')
+caso('trato antes do início do preço não conta', 'italo',
+     f"select public.definir_preco_dieta({B}, 'Proteinado', 2.5, '2026-03-02');\n" + ins_cocho + ";\n" + auto, 'nada')
+caso('corrigir o kg do trato corrige a despesa', 'italo', preco + ";\n" + ins_cocho + ";\nupdate public.supl_cocho set kg=100 where dieta='Proteinado';\n" + auto, 'Proteinado|250.00|NUTRIÇÃO')
+caso('excluir o trato tira a despesa', 'italo', preco + ";\n" + ins_cocho + ";\nupdate public.supl_cocho set excluido_em=now() where dieta='Proteinado';\n" + auto, 'nada')
+caso('preço novo refaz o mês', 'italo', preco + ";\n" + ins_cocho + f";\nselect public.definir_preco_dieta({B}, 'Proteinado', 3, '2026-03-01');\n" + auto, 'Proteinado|600.00|NUTRIÇÃO')
+caso('vaqueiro não vê a despesa automática', 'genisval', ins_cocho + ";\nselect count(*) from public.financeiro where origem='cocho'", 0, aal='aal1')
+def claims(q, aal): return json.dumps({'sub': '00000000-0000-0000-0000-%012d' % U[q], 'aal': aal, 'role': 'authenticated'})
+cod, out = rodar("begin; set local role authenticated;"
+                 f"do $x$ begin perform set_config('request.jwt.claims', '{claims('italo','aal2')}', true); end $x$; {preco};"
+                 f"do $x$ begin perform set_config('request.jwt.claims', '{claims('genisval','aal1')}', true); end $x$; {ins_cocho};"
+                 "reset role; select valor from public.financeiro where origem='cocho' and excluido_em is null; rollback;")
+ok = cod == 0 and out.splitlines()[-1] == '500.00'; falhas += 0 if ok else 1
+print(('OK   ' if ok else 'FALHOU ') + '[genisval] trato do vaqueiro lança a despesa mesmo sem ele ver o caixa' + ('' if ok else f'  -> {out[:300]}'))
+caso('vaqueiro não muda preço', 'genisval', preco, 'erro', aal='aal1')
+caso('administrativo não muda preço', 'josiane', preco, 'erro')
+caso('ISM sem duas etapas não muda preço', 'italo', preco, 'erro', aal='aal1')
+
 print('--- Sem login')
 cod, out = rodar("begin; set local role anon; select count(*) from public.animais; rollback;")
 ok = cod != 0

@@ -395,7 +395,23 @@ function supDraw(){
   cocHint();
  }
 }
-$('#smes').onchange=supDraw;
+$('#smes').onchange=()=>supDraw();
+/* Preço das dietas (só ISM): cocho × preço vira despesa de nutrição no caixa (o banco calcula) */
+let PRE_LOCAL=null;
+const precos=()=>PRE_LOCAL||(ISM.painel&&ISM.painel().precos_supl)||{};
+const precoEm=(dt,d)=>((precos().dietas||{})[dt]||[]).filter(e=>e.desde<=d).sort((a,b)=>b.desde.localeCompare(a.desde))[0];
+function preDraw(){if(!$('#fpre')||!can('importar'))return;const P=precos().dietas||{},m=$('#smes').value||ymNow(),ds=[...new Set([...dietas(),...Object.keys(P)])];
+ fillSel('#pre-dieta',ds,true);if(!$('#pre-desde').value)$('#pre-desde').value=ymNow()+'-01';
+ const kgm=dt=>C.cocho.filter(x=>x.dieta===dt&&x.d.slice(0,7)===m),custo=dt=>sm(kgm(dt).map(x=>{const e=precoEm(dt,x.d);return e?x.kg*e.preco:0}));
+ $('#pret').innerHTML='<table class="pt"><tr><th>Dieta</th><th>Preço atual</th><th>Desde</th><th>No cocho em '+mlab(m)+'</th><th>Despesa do mês</th></tr>'+ds.map(dt=>{const e=precoEm(dt,today()),h=(P[dt]||[]).slice().sort((a,b)=>b.desde.localeCompare(a.desde));
+  return'<tr><td>'+esc(dt)+'</td><td>'+(e?brl(e.preco):'<span class="mut">sem preço</span>')+'</td><td>'+(e?fd(e.desde):'–')+(h.length>1?'<span class="sub2">'+h.length+' preços cadastrados</span>':'')+'</td><td>'+kgf(sm(kgm(dt).map(x=>x.kg)))+'</td><td class="av">'+brl(custo(dt))+'</td></tr>'}).join('')+
+  '<tr class="sm"><td>Total</td><td></td><td></td><td>'+kgf(sm(ds.map(dt=>sm(kgm(dt).map(x=>x.kg)))))+'</td><td>'+brl(sm(ds.map(custo)))+'</td></tr></table>'}
+window.preDraw=preDraw;{const f0=supDraw;supDraw=function(){f0();preDraw()}}
+$('#fpre').onsubmit=async e=>{e.preventDefault();if(!can('importar'))return;const f=new FormData(e.target),v=num(f.get('preco')),dt=f.get('dieta'),de=f.get('desde');
+ if(!dt)return msg('Escolha a dieta.');if(!(v>=0)||String(f.get('preco')).trim()==='')return msg('Informe o preço por kg.');if(!de)return msg('Informe a data de início.');
+ if(!navigator.onLine)return msg('Para mudar preço é preciso internet.');const b=e.target.querySelector('button');b.disabled=true;
+ try{PRE_LOCAL=await ISM.rpc('definir_preco_dieta',{c:ISM.cliente.id,p_dieta:dt,p_preco:v,p_desde:de});msg('Preço de '+dt+' salvo: '+brl(v)+'/kg desde '+fd(de)+'. O caixa será refeito.');$('#pre-preco').value='';preDraw();ISM.sincronizar()}
+ catch(err){msg(err.message||'Não foi possível salvar o preço.')}finally{b.disabled=false}};
 document.querySelectorAll('[data-dieta]').forEach(s=>s.addEventListener('change',()=>{const o=s.closest('form').querySelector('[name=outra]').closest('.f');o.hidden=s.value!=='__o';if(!o.hidden)o.querySelector('input').focus();s.id==='fab-dieta'?fabHint():cocHint()}));
 const dietaOf=f=>f.get('dieta')==='__o'?String(f.get('outra')||'').trim():f.get('dieta');
 function fabHint(){const d=$('#fab-dieta').value,S=stock()[d];$('#fab-h').textContent=d&&d!=='__o'?'Estoque de '+d+': '+(S?kgf(S.p-S.s)+' ('+sac(S.p-S.s)+' sacos)':'0 kg'):''}
