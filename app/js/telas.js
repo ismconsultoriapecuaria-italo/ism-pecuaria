@@ -653,6 +653,47 @@ $('#fcx').onsubmit=e=>{e.preventDefault();if(!canW()||!can('fin_lancar'))return;
  putC('financeiro',doc);
  msg(f.get('tipo')+' de '+brl(v)+' lançada no caixa.');['#cx-valor','#cx-novo','#cx-obs','#cx-forn','#cx-nf'].forEach(q=>$(q).value='');$('#cx-item').value='';cxDraw();finDraw()};
 
+/* ============ RELATÓRIO DO CAIXA (PDF e Excel), por mês ============ */
+const MEXT=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],mext=m=>MEXT[+m.slice(5)-1]+' de '+m.slice(0,4);
+function relDados(m){const j=M.indexOf(m),ord={Receita:0,Despesa:1,Investimento:2};
+ const res=K.filter(r=>j>=0&&r[4][j]).map(r=>({tipo:r[0],grupo:r[1],sub:r[2],item:r[3],valor:r[4][j]})).sort((a,b)=>ord[a.tipo]-ord[b.tipo]||a.grupo.localeCompare(b.grupo,'pt-BR')||a.sub.localeCompare(b.sub,'pt-BR')||a.item.localeCompare(b.item,'pt-BR'));
+ const tot=t=>sm(res.filter(r=>r.tipo===t).map(r=>r.valor));
+ const det=(C.financeiro||[]).filter(x=>x.d.slice(0,7)===m).sort((a,b)=>a.d.localeCompare(b.d)||ord[a.tipo]-ord[b.tipo]||a.grupo.localeCompare(b.grupo,'pt-BR'));
+ const org=x=>x.manual?'Manual':x.auto||x.origem==='cocho'?'Cocho (automático)':'Importado';
+ return{res,det,org,rec:tot('Receita'),des:tot('Despesa'),inv:tot('Investimento'),base:BM.includes(m)}}
+function relAbrir(){if(!can('fin_ver'))return;const ms=M.slice().reverse();if(!ms.length)return msg('Nenhum mês com lançamentos.');
+ const d=document.createElement('div');d.className='login';d.id='janela-rel';
+ d.innerHTML='<div class="lbox"><h2 class="ct">Relatório do caixa</h2><p class="hint">Resumo por centro de custo e todos os lançamentos do mês, com fornecedor e nota fiscal.</p><form class="eform"><label>Mês<select name="mes">'+ms.map(m=>'<option value="'+m+'">'+mext(m)+'</option>').join('')+'</select></label>'+
+  '<button class="btn wide" type="button" data-rel="pdf">Baixar PDF</button><button class="btn wide" type="button" data-rel="xlsx">Baixar Excel</button><button class="btn ghost wide" type="button" data-fechar>Fechar</button></form></div>';
+ document.body.appendChild(d);d.querySelector('[data-fechar]').onclick=()=>d.remove();
+ d.querySelectorAll('[data-rel]').forEach(b=>b.onclick=async()=>{const m=d.querySelector('[name=mes]').value;b.disabled=true;try{await relGerar(m,b.dataset.rel)}finally{b.disabled=false}})}
+$('#rel-abrir').onclick=relAbrir;
+async function relGerar(m,fmt){const R_=relDados(m),dd=await dl();if(!dd)return;const nome='Caixa_'+ISM.cliente.nome.replace(/\s+/g,'_')+'_'+m;
+ const cab=['Data','Tipo','Centro de custo','Subcentro','Item','Fornecedor','NF','Valor (R$)','Origem','Lançado por','Observação'];
+ const lin=x=>[fd(x.d),x.tipo,x.grupo,x.sub||'',x.item,x.forn||'',x.nf||'',x.valor,R_.org(x),x.por||'',x.obs||''];
+ try{
+ if(fmt==='xlsx'){await loadXLSX();const wb=XLSX.utils.book_new();
+  const r1=[['Relatório do caixa · '+ISM.cliente.nome+' · '+mext(m)],['Emitido em '+fd(today())+' por '+USER.n],[],['Receitas',R_.rec],['Despesas',R_.des],['Investimentos',R_.inv],['Saldo (receitas − despesas − investimentos)',R_.rec-R_.des-R_.inv],[],['Tipo','Centro de custo','Subcentro','Item','Valor (R$)'],...R_.res.map(r=>[r.tipo,r.grupo,r.sub,r.item,Math.round(r.valor*100)/100])];
+  const w1=XLSX.utils.aoa_to_sheet(r1);w1['!cols']=[{wch:16},{wch:30},{wch:30},{wch:30},{wch:14}];XLSX.utils.book_append_sheet(wb,w1,'Resumo');
+  const w2=XLSX.utils.aoa_to_sheet([cab,...R_.det.map(lin)]);w2['!cols']=[{wch:11},{wch:12},{wch:28},{wch:26},{wch:26},{wch:22},{wch:10},{wch:13},{wch:18},{wch:14},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,w2,'Lançamentos');
+  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});await dd.save({filename:nome+'.xlsx',data:new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})});msg('Relatório de '+mext(m)+' baixado em Excel.');return}
+ const J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw{code:'lib'};const doc=new J({orientation:'l',unit:'pt',format:'a4'}),pw_=doc.internal.pageSize.getWidth(),ph_=doc.internal.pageSize.getHeight();
+ try{doc.addImage(PDFLOGO,'PNG',40,22,150,150*PDFR)}catch(e){doc.setFontSize(12);doc.text(ISM.cliente.nome.toUpperCase(),40,40)}
+ doc.setFontSize(8);doc.setTextColor(110);doc.text('ISM Consultoria Pecuária',pw_-40,32,{align:'right'});doc.text('Emitido em '+fd(today())+' por '+USER.n,pw_-40,44,{align:'right'});
+ doc.setDrawColor(31,61,43);doc.setLineWidth(1.2);doc.line(40,68,pw_-40,68);doc.setTextColor(20);doc.setFontSize(15);doc.text('Relatório do caixa · '+mext(m),40,90);
+ const bx=(x,t,v,c)=>{doc.setFillColor(241,244,236);doc.roundedRect(x,102,(pw_-80-30)/4,44,4,4,'F');doc.setFontSize(8);doc.setTextColor(92,107,95);doc.text(t.toUpperCase(),x+10,117);doc.setFontSize(13);doc.setTextColor(...c);doc.text(brl(v),x+10,136)};
+ const bw=(pw_-80-30)/4;bx(40,'Receitas',R_.rec,[31,61,43]);bx(40+(bw+10),'Despesas',R_.des,[181,67,42]);bx(40+2*(bw+10),'Investimentos',R_.inv,[22,35,26]);bx(40+3*(bw+10),'Saldo',R_.rec-R_.des-R_.inv,R_.rec-R_.des-R_.inv<0?[181,67,42]:[31,111,181]);
+ doc.setTextColor(20);doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(31,61,43);doc.text('RESUMO POR CENTRO DE CUSTO',40,170);doc.setFont('helvetica','normal');doc.setTextColor(20);
+ const rb=[];let gA='';R_.res.forEach(r=>{const k=r.tipo+'|'+r.grupo;if(k!==gA){gA=k;rb.push([{content:r.tipo+' · '+r.grupo,colSpan:3,styles:{fontStyle:'bold',fillColor:[225,233,214]}},{content:brl(sm(R_.res.filter(x=>x.tipo===r.tipo&&x.grupo===r.grupo).map(x=>x.valor))),styles:{fontStyle:'bold',halign:'right',fillColor:[225,233,214]}}])}rb.push(['',r.sub||'—',r.item,{content:brl(r.valor),styles:{halign:'right'}}])});
+ doc.autoTable({startY:178,head:[['','Subcentro','Item',{content:'Valor',styles:{halign:'right'}}]],body:rb,styles:{fontSize:8,cellPadding:3},headStyles:{fillColor:[31,61,43]},columnStyles:{0:{cellWidth:20}}});
+ let y=doc.lastAutoTable.finalY+24;if(y>ph_-100){doc.addPage();y=50}
+ doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(31,61,43);doc.text('LANÇAMENTOS DO MÊS ('+R_.det.length+')',40,y);doc.setFont('helvetica','normal');doc.setTextColor(20);
+ if(R_.det.length)doc.autoTable({startY:y+8,head:[cab.slice(0,10)],body:R_.det.map(x=>{const l=lin(x).slice(0,10);l[7]=brl(x.valor);return l}),styles:{fontSize:7,cellPadding:2.5},headStyles:{fillColor:[31,61,43]},alternateRowStyles:{fillColor:[241,244,236]},columnStyles:{7:{halign:'right'}}});
+ else{doc.setFontSize(9);doc.setTextColor(92,107,95);doc.text(R_.base?'Mês fechado pela planilha de caixa: os valores estão no resumo acima.':'Nenhum lançamento neste mês.',40,y+18)}
+ const n=doc.internal.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(7);doc.setTextColor(120);doc.text(ISM.cliente.nome+' · Relatório do caixa · '+mext(m),40,ph_-20);doc.text('Página '+i+' de '+n,pw_-40,ph_-20,{align:'right'})}
+ await dd.save({filename:nome+'.pdf',data:doc.output('blob')});msg('Relatório de '+mext(m)+' baixado em PDF.')
+ }catch(er){xerr(er)}}
 $('#cx-data').value=today();$('#cx-tipo').onchange=()=>{const e=cxEl();cxCascata(e,$('#cx-tipo').value,{grupo:'',sub:null,item:''})};
 /* início */
 ['#pbt','#vbt','#mbt'].forEach(s=>tagSet(s,''));

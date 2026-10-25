@@ -151,6 +151,22 @@ with sync_playwright() as pw:
     ok(esperar(lambda: sql("select count(*) from financeiro where item='Item novo e2e' and sub='NUTRIÇÃO'") == '1'), 'item novo digitado em "Outro" gravado')
     ok(esperar(lambda: 'Item novo e2e' in p.evaluate("[...document.querySelectorAll('#cx-item option')].map(o=>o.value)")), 'item novo passa a aparecer na lista')
     ok('Agro Teste' in p.evaluate("[...document.querySelectorAll('#cx-forns option')].map(o=>o.value)"), 'fornecedor usado vira sugestão')
+    # relatório do caixa (bibliotecas de PDF/Excel simuladas: o teste não tem internet)
+    p.evaluate('''(()=>{const ch=[];window.__pdf=ch;const D={internal:{pageSize:{getWidth:()=>842,getHeight:()=>595},getNumberOfPages:()=>2},lastAutoTable:{finalY:300}};
+      ['addImage','setFontSize','setTextColor','text','setDrawColor','setLineWidth','line','setFillColor','roundedRect','setFont','addPage','setPage'].forEach(k=>D[k]=(...a)=>{if(k==='text')ch.push(String(a[0]))});
+      D.autoTable=o=>{ch.push('tabela:'+o.body.length)};D.output=()=>new Blob(['pdf']);
+      window.jspdf={jsPDF:function(){return D}};
+      window.XLSX={utils:{book_new:()=>({S:[]}),aoa_to_sheet:a=>({a}),book_append_sheet:(w,s,n)=>w.S.push([n,s.a.length])},write:w=>{window.__xls=w.S;return new Uint8Array(1)}};
+      const o=window.claude.use;window.claude.use=async k=>k==='downloads'?{save:f=>{window.__salvo=f.filename}}:o(k)})()''')
+    p.click('#rel-abrir'); p.wait_for_selector('#janela-rel')
+    ok(p.evaluate("[...document.querySelectorAll('#janela-rel [name=mes] option')].some(o=>o.value==='2026-10')"), 'relatório oferece os meses, inclusive outubro')
+    p.select_option('#janela-rel [name=mes]', '2026-10'); p.click('#janela-rel [data-rel=pdf]')
+    ok(esperar(lambda: p.evaluate("window.__salvo") == 'Caixa_Fazenda_Barramas_2026-10.pdf'), 'PDF do caixa de outubro gerado: ' + str(p.evaluate("window.__salvo")))
+    ok(p.evaluate("__pdf.includes('Relatório do caixa · Outubro de 2026') && __pdf.some(t=>t.startsWith('LANÇAMENTOS DO MÊS'))"), 'PDF com título, resumo e lançamentos')
+    p.click('#janela-rel [data-rel=xlsx]')
+    ok(esperar(lambda: p.evaluate("window.__salvo") == 'Caixa_Fazenda_Barramas_2026-10.xlsx'), 'Excel do caixa de outubro gerado')
+    ok(p.evaluate("__xls.map(x=>x[0]).join(',')") == 'Resumo,Lançamentos' and p.evaluate("__xls[1][1]") >= 4, 'Excel com abas Resumo e Lançamentos: ' + str(p.evaluate("__xls")))
+    p.click('#janela-rel [data-fechar]')
     # corrige a data de um romaneio de entrada
     p.on('dialog', lambda d: d.accept())
     p.evaluate("(()=>{const r=R.find(x=>x.tipo==='Entrada'&&x.it.some(i=>String(i.id)==='3449'));window.__rid=r.id;corrigirDataRom(r,'2026-09-11')})()")

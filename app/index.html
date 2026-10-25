@@ -319,7 +319,8 @@ label.btn{color:var(--acc-ink)}
 <!-- FINANCEIRO -->
 <section class="view" id="v-fin" hidden>
  <div class="bar">
-  <button class="btn ghost sm" type="button" data-go="imp" data-perm="importar" style="margin-left:auto;order:2">Importar planilha</button><div class="period"><label for="per-a">Período</label><select id="per-a"></select><span>até</span><label for="per-b" class="mut" hidden>Fim</label><select id="per-b"></select></div>
+  <button class="btn ghost sm" type="button" id="rel-abrir" data-perm="fin_ver" style="margin-left:auto;order:2">Relatório do caixa</button>
+  <button class="btn ghost sm" type="button" data-go="imp" data-perm="importar" style="order:3">Importar planilha</button><div class="period"><label for="per-a">Período</label><select id="per-a"></select><span>até</span><label for="per-b" class="mut" hidden>Fim</label><select id="per-b"></select></div>
  </div>
  <form id="fcx" class="card" data-perm="fin_lancar">
   <p class="eyebrow">Caixa</p><h2 class="ct">Lançar no caixa</h2>
