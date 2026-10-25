@@ -26,6 +26,7 @@ App PWA (Android) de gestão de fazendas da ISM Consultoria Pecuária. Desenvolv
 - Fazenda Demonstração (migração 005, `recriar_demonstracao()`): cópia da Barramas com nomes trocados e dinheiro ×0,9; módulo `demonstracao` liga a faixa amarela e o "Ver o app como" (só para ISM) no menu Conta. Nunca mostrar a Barramas a outros clientes.
 - Toda gravação, exclusão, desfazer ou encerramento pergunta antes (`certeza()` em telas.js; editores pedem "Salvar as alterações?"). Lançamento animal a animal nos romaneios não pergunta, exceto pelo protocolo do peso.
 - Protocolo de segurança do peso (entrada, pesagem, venda e edição de romaneio): pede confirmação se o peso for < 100 kg, > 600 kg, ou (com 5+ animais no romaneio) se afastar mais de 25% da mediana do romaneio (`pesoAlertas`, `pesoConfere`).
+- Atividades semanais (migração 009): dias da semana em `extra.rec` (0 = domingo); ao concluir, o gatilho `atividades_rotina` grava `extra.ult`/`extra.feitas` e devolve a atividade "a fazer" com prazo no próximo dia marcado (vale para o vaqueiro também). Lista de atividades ordenada pelo prazo mais próximo (atrasadas primeiro, sem prazo por último, concluídas no fim), com "Vence em N dias".
 - Vaqueiro vê preço por cabeça e valor da @, não vê totais de venda.
 - Serviços gerais: cocho, fábrica, atividades operacionais; sem rebanho.
 - Atividades: estratégico só ISM/Proprietário; tático também Administrativo/Gerente; operacional todos. Quem não gerencia só muda a situação das próprias.

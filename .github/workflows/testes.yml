@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           psql -c "create database ism"
-          for f in tests/supabase_simulado.sql supabase/migrations/001_estrutura.sql supabase/migrations/002_regras_de_acesso.sql supabase/migrations/003_proprietario_edita_caixa.sql supabase/migrations/004_dispensa_duas_etapas.sql supabase/migrations/006_permissao_por_pessoa.sql supabase/migrations/007_cocho_no_financeiro.sql supabase/migrations/008_painel_ism.sql tests/dados_teste.sql; do
+          for f in tests/supabase_simulado.sql supabase/migrations/001_estrutura.sql supabase/migrations/002_regras_de_acesso.sql supabase/migrations/003_proprietario_edita_caixa.sql supabase/migrations/004_dispensa_duas_etapas.sql supabase/migrations/006_permissao_por_pessoa.sql supabase/migrations/007_cocho_no_financeiro.sql supabase/migrations/008_painel_ism.sql supabase/migrations/009_atividades_semanais.sql tests/dados_teste.sql; do
             psql -d ism -v ON_ERROR_STOP=1 -q -f $f
           done
       - run: python3 tests/testar_acesso.py localhost 5432

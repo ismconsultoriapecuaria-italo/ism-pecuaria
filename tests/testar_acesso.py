@@ -200,6 +200,25 @@ caso('ISM sem duas etapas não usa o painel', 'italo', "select public.ism_client
 caso('proprietário não lê a lista de clientes da ISM', 'wilmington', conta('grupos'), 0)
 caso('quem não tem senha provisória não precisa trocar', 'genisval', "select public.preciso_trocar_senha()", 'f', aal='aal1')
 
+print('--- Atividades que se repetem toda semana')
+rot = "update public.atividades set extra = extra || '{\"rec\":[5]}', prazo = '2026-10-23' where titulo='Limpar bebedouro';\n"
+caso('vaqueiro conclui a rotina de sexta e ela volta para a próxima sexta', 'italo',
+     rot + "update public.atividades set situacao=2, concluida_em='2026-10-23' where titulo='Limpar bebedouro';\n"
+     "select prazo||'|'||situacao||'|'||coalesce(concluida_em::text,'-')||'|'||(extra->>'ult')||'|'||(extra->>'feitas') from public.atividades where titulo='Limpar bebedouro'",
+     '2026-10-30|0|-|2026-10-23|1')
+caso('feita atrasada (terça) volta para a sexta seguinte', 'italo',
+     rot + "update public.atividades set situacao=2, concluida_em='2026-10-27' where titulo='Limpar bebedouro';\n"
+     "select prazo from public.atividades where titulo='Limpar bebedouro'", '2026-10-30')
+cod, out = rodar("begin; update public.atividades set extra = extra || '{\"rec\":[5]}', prazo = '2026-10-23' where titulo='Limpar bebedouro'; set local role authenticated;"
+                 f"do $x$ begin perform set_config('request.jwt.claims', '{claims('genisval','aal1')}', true); end $x$;"
+                 "update public.atividades set situacao=2, concluida_em='2026-10-23' where titulo='Limpar bebedouro'; reset role;"
+                 "select prazo||'|'||situacao from public.atividades where titulo='Limpar bebedouro'; rollback;")
+ok = cod == 0 and out.splitlines()[-1] == '2026-10-30|0'; falhas += 0 if ok else 1
+print(('OK   ' if ok else 'FALHOU ') + '[genisval] o próprio vaqueiro conclui e a rotina volta para a próxima sexta' + ('' if ok else f'  -> {out[:300]}'))
+caso('atividade sem repetição continua concluída', 'italo',
+     "update public.atividades set situacao=2, concluida_em='2026-10-23' where titulo='Consertar cerca';\n"
+     "select situacao from public.atividades where titulo='Consertar cerca'", 2)
+
 print('--- Sem login')
 cod, out = rodar("begin; set local role anon; select count(*) from public.animais; rollback;")
 ok = cod != 0
