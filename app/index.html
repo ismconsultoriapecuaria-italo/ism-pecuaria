@@ -176,6 +176,21 @@ input.big{font:600 30px/1 var(--f-m);min-height:62px;padding:10px 14px}
 .scale{background:var(--scale);color:var(--scale-ink);font:500 15px/1.6 var(--f-m);border-radius:8px;padding:12px 14px;white-space:pre-line;min-height:52px;border:2px solid transparent}
 .scale:empty::before{content:attr(data-ph);opacity:.55}
 .scale.warn{background:var(--warn-bg);color:var(--warn-ink);border-color:var(--neg)}
+/* balança AT55 */
+.bal{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--soft)}
+.balh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.baldot{width:12px;height:12px;border-radius:50%;background:var(--mut);flex:none}
+.bal[data-estado=ligada] .baldot{background:var(--pos)}
+.bal[data-estado=sem-resposta] .baldot,.bal[data-estado=caiu] .baldot{background:var(--neg)}
+.bal[data-estado=conectando] .baldot{background:var(--inv)}
+.balt{flex:1;min-width:12ch;font-size:14px;color:var(--mut)}
+.bal[data-estado=caiu] .balt,.bal[data-estado=sem-resposta] .balt{color:var(--neg)}
+.balb{display:flex;gap:6px;flex-wrap:wrap}
+.balv{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;background:var(--scale);color:var(--scale-ink);border-radius:8px;padding:8px 12px}
+.balkg{font:800 34px/1 var(--f-m)}
+.bals{font-size:14px;font-weight:600}
+.bal[data-sit=estavel] .bals{color:#9fe27f}
+.balv .btn{margin-left:auto;color:var(--scale-ink);border-color:currentColor}
 
 /* brinco */
 .tag{display:inline-flex;align-items:center;gap:5px;background:var(--tag);color:var(--tag-ink);border:1px solid var(--tag-edge);border-radius:6px 6px 11px 11px;padding:2px 9px 2px 7px;font:600 14px/1.3 var(--f-m)}
@@ -378,6 +393,7 @@ label.btn{color:var(--acc-ink)}
   <div id="fe2" class="card run" hidden>
    <p class="runinfo" id="fi"></p>
    <div class="tagent" id="fbt" aria-live="polite"></div><span id="fb" hidden></span>
+   <div class="bal" id="bal-fw"></div>
    <label for="fw">Peso de entrada (kg)</label><input id="fw" class="big" inputmode="decimal" autocomplete="off">
    <button class="btn wide" id="fgo" type="button">Lançar e ir para o próximo</button>
    <div class="row2"><button class="btn ghost" id="fund" type="button">Desfazer último</button><button class="btn ghost" id="fend" type="button">Encerrar romaneio</button></div>
@@ -400,6 +416,7 @@ label.btn{color:var(--acc-ink)}
   </form>
   <div id="fp2" class="card run" hidden>
    <p class="runinfo" id="pi"></p>
+   <div class="bal" id="bal-pw"></div>
    <div class="pair"><div class="f"><label for="pb">Brinco</label><input id="pb" class="big" type="number" inputmode="numeric"></div>
    <div class="f"><label for="pw">Peso (kg)</label><input id="pw" class="big" inputmode="decimal" autocomplete="off"></div></div>
    <div class="scalerow"><div id="pbt"></div><div id="pg" class="scale" aria-live="polite" data-ph="Digite o brinco e o peso."></div></div>
@@ -425,6 +442,7 @@ label.btn{color:var(--acc-ink)}
   </form>
   <div id="fv2" class="card run" hidden>
    <p class="runinfo" id="vi"></p>
+   <div class="bal" id="bal-vw"></div>
    <div class="pair"><div class="f"><label for="vb">Brinco</label><input id="vb" class="big" type="number" inputmode="numeric"></div>
    <div class="f"><label for="vw">Peso final (kg)</label><input id="vw" class="big" inputmode="decimal" autocomplete="off"></div></div>
    <div class="scalerow"><div id="vbt"></div><div id="vg" class="scale" aria-live="polite" data-ph="Digite o brinco e o peso final."></div></div>
@@ -592,6 +610,7 @@ label.btn{color:var(--acc-ink)}
 <script src="js/nuvem.js"></script>
 <script src="js/sinc.js"></script>
 <script src="js/ponte.js"></script>
+<script src="js/balanca.js"></script>
 <script src="js/ism.js"></script>
 <script src="js/entrada.js"></script>
 </body>

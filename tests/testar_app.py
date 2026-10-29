@@ -247,6 +247,70 @@ with sync_playwright() as pw:
     ok(not erros, 'sem erros de tela (Wilmington) ' + str(erros[:3]))
     b.close()
 
+    # ---------------- Balança AT55 (imitação da porta serial do Bluetooth) ----------------
+    BALANCA_FALSA = """
+    window.__bal={kg:0,sit:2,sinal:1,cmds:[],opts:null,ctrl:null,mudo:false};
+    const porta={readable:null,writable:null,
+      async open(o){__bal.aberta=o;this.readable=new ReadableStream({start(c){__bal.ctrl=c}});
+        this.writable=new WritableStream({write(ch){for(const b of ch){__bal.cmds.push(b);if(__bal.mudo)continue;
+          if(b===0x30){const k=__bal.kg;__bal.ctrl.enqueue(new Uint8Array([0x05,k&255,k>>8,__bal.sinal,__bal.sit]))}
+          else if(b===0x35)__bal.ctrl.enqueue(new Uint8Array([0x54]))}}})},
+      async close(){},getInfo(){return{}}};
+    __bal.cair=()=>__bal.ctrl.error(new Error('caiu'));
+    Object.defineProperty(navigator,'serial',{configurable:true,value:{getPorts:async()=>__bal.lembra?[porta]:[],
+      requestPort:async o=>{__bal.opts=o;__bal.lembra=true;return porta},addEventListener(){}}});"""
+    b = pw.chromium.launch()
+    ctx = b.new_context(viewport={'width': 412, 'height': 900}, locale='pt-BR')
+    ctx.route('https://**/*', lambda r: r.fulfill(status=200, content_type='text/css' if 'fonts' in r.request.url else 'application/javascript', body=''))
+    ctx.add_init_script(BALANCA_FALSA)
+    p = ctx.new_page(); erros = []
+    p.on('pageerror', lambda e: erros.append(str(e)))
+    p.on('dialog', lambda d: d.accept())
+    p.goto(URL)
+    entrar(p, 'genisval')
+    ok(p.evaluate("(()=>{const B=Balanca;B._recebe([0x41,0x54,0x07,0x05,0x65,0x01,0x01,0x01]);return B.leitura&&B.leitura.kg===357&&B.leitura.situacao==='estavel'})()"), 'lê o peso do protocolo (357 kg estável) mesmo com bytes soltos antes')
+    p.click('#nav button[data-v=man]'); p.click('#mseg button:has-text("Pesagem")')
+    p.click('#fp button.btn'); p.wait_for_selector('#fp2', state='visible')
+    ok(p.is_visible('#bal-pw [data-b=con]'), 'pesagem mostra o botão "Conectar balança"')
+    p.click('#bal-pw [data-b=con]')
+    ok(esperar(lambda: p.evaluate("Balanca.estado") == 'ligada', 8), 'balança conecta')
+    ok(p.evaluate("__bal.opts.allowedBluetoothServiceClassIds[0]") == '00001101-0000-1000-8000-00805f9b34fb', 'pede a porta serial do Bluetooth clássico')
+    br = p.evaluate("A.find(a=>!a.venda&&!a.morte&&a.id!=='1001'&&a.id!=='1002').id")
+    p.fill('#pb', br)
+    p.evaluate("__bal.kg=355;__bal.sit=0")
+    time.sleep(1.2)
+    ok(p.input_value('#pw') == '', 'peso ainda variando ("pesando") não entra no campo: ' + p.input_value('#pw') + ' ' + p.inner_text('#bal-pw'))
+    ok('pesando' in p.inner_text('#bal-pw .bals'), 'tela mostra "pesando…"')
+    p.evaluate("__bal.sit=1")
+    ok(esperar(lambda: p.input_value('#pw') == '355', 5), 'peso estável entra sozinho no campo (355 kg)')
+    ok('Último peso' in p.inner_text('#pg'), 'mostra último peso e GMD como na digitação')
+    p.click('#pgo')
+    ok(esperar(lambda: sql(f"select count(*) from pesagens p join animais a on a.id=p.animal_id where a.brinco='{br}' and p.peso=355 and p.excluido_em is null") == '1'), 'pesagem com o peso da balança chegou ao banco')
+    time.sleep(1.2)
+    ok(p.input_value('#pw') == '' and 'aguardando o animal sair' in p.inner_text('#bal-pw .bals'), 'depois de lançar, não repete o mesmo peso até a balança zerar')
+    p.evaluate("__bal.kg=0;__bal.sit=2"); time.sleep(1)
+    p.evaluate("__bal.kg=402;__bal.sit=1")
+    ok(esperar(lambda: p.input_value('#pw') == '402', 5), 'balança zerou: próximo animal entra (402 kg)')
+    p.fill('#pw', '410'); p.evaluate("__bal.kg=405"); time.sleep(1.2)
+    ok(p.input_value('#pw') == '410', 'não passa por cima do peso digitado à mão')
+    p.click('#bal-pw [data-b=usar]')
+    ok(p.input_value('#pw') == '405', 'botão "Usar este peso" puxa o peso da balança')
+    p.click('#bal-pw [data-b=tara]')
+    ok(esperar(lambda: p.evaluate("__bal.cmds.includes(0x35)"), 3), '"Zerar balança" manda o comando de tara')
+    p.evaluate("__bal.mudo=true")
+    ok(esperar(lambda: p.evaluate("Balanca.estado") == 'sem-resposta', 6), 'balança sem responder: aviso em vermelho')
+    p.evaluate("__bal.mudo=false")
+    ok(esperar(lambda: p.evaluate("Balanca.estado") == 'ligada', 4), 'voltou a responder: aviso some')
+    p.evaluate("__bal.cair()")
+    ok(esperar(lambda: p.evaluate("Balanca.estado") == 'caiu' and p.is_visible('#bal-pw [data-b=con]'), 5), 'ligação caiu: avisa e mostra "Conectar balança" de novo')
+    p.click('#bal-pw [data-b=con]')
+    ok(esperar(lambda: p.evaluate("Balanca.estado") == 'ligada', 5), 'reconecta sem abrir a lista de aparelhos de novo')
+    p.click('#pend')
+    p.click('#mseg button:has-text("Entrada")')
+    ok(p.evaluate("[...document.querySelectorAll('.bal')].every(e=>!e.hidden)") and p.evaluate("document.querySelectorAll('.bal').length") == 3, 'painel da balança também na entrada e na venda')
+    ok(not erros, 'sem erros de tela (balança) ' + str(erros[:3]))
+    b.close()
+
     # ---------------- Fazenda Demonstração ----------------
     subprocess.run(['psql', '-d', BANCO, '-q', '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/migrations/005_fazenda_demonstracao.sql'], capture_output=True)
     subprocess.run(['psql', '-d', BANCO, '-q', '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/migrations/008_painel_ism.sql'], capture_output=True)

@@ -10,6 +10,7 @@ App PWA (Android) de gestão de fazendas da ISM Consultoria Pecuária. Desenvolv
   - `js/sinc.js`: fila de envio, recebimento incremental por `atualizado_em`, e tradução documento das telas ⇄ tabelas. Expõe `Sinc.db` com a mesma interface `collection().onSnapshot` / `doc().set/delete` do protótipo.
   - `js/ponte.js`: `window.claude.use('db'|'downloads')` para as telas.
   - `js/entrada.js`: login, duas etapas, escolha de fazenda, perfis/permissões (tabela `permissoes` → nomes usados nas telas), modo aparelho compartilhado, menu Conta. Carrega `js/telas.js` só depois.
+  - `js/balanca.js`: balança AnimallTAG AT55 por Bluetooth clássico (Web Serial, perfil SPP). Envia 0x30 ~3×/s e lê `[05, peso baixo, peso alto, sinal, situação]`; 0x35 tara. Painel "Conectar balança" nos romaneios de entrada, pesagem e venda: peso estável entra sozinho no campo, não passa por cima do que foi digitado e só aceita outro peso depois que a balança volta a zero. Bastão leitor (AT05) fica para projeto futuro.
   - `js/telas.js`: telas vindas do protótipo aprovado (financeiro, manejo/romaneios, rebanho, suplemento, atividades, mapa, importação). Variáveis globais: `A` (animais), `R` (romaneios), `C` (coleções), `USER`, `can()`.
 - `supabase/migrations/001_estrutura.sql` e `002_regras_de_acesso.sql`: tabelas, RLS por perfil (`pode(cliente, acao)`), MFA (aal2) para ISM/Proprietário/Administrativo, auditoria, exclusão lógica, valor de venda em `vendas_valor` (vaqueiro não lê).
 - Multi-cliente: `clientes.modulos` = pacote de abas; marca/mapa/caixa por cliente na tabela `painel`.

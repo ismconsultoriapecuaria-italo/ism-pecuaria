@@ -356,6 +356,8 @@ $('#vw').onkeydown=e=>{if(e.key=='Enter'){e.preventDefault();vlanca()}};
 $('#vcl').onclick=()=>{$('#vw').value='';vcalc();$('#vw').focus()};
 $('#vund').onclick=()=>{if(!V.u.length)return;if(!certeza('Desfazer a última venda (brinco '+V.u[V.u.length-1]+')?'))return;const a=findA(V.u.pop());if(a&&a.venda){V.t-=a.venda.valor;a.venda=null;putA(a)}V.c--;rund(V);msg('Última venda desfeita.');vnew();refresh()};
 $('#vend').onclick=()=>{if(!certeza('Encerrar esta venda com '+V.c+' animal(is)'+(VAL()?', total '+brl(V.t):'')+'?'))return;msg('Venda encerrada: '+V.c+' animais, total '+brl(V.t)+'.');V=null;$('#fv2').hidden=true;$('#fv').hidden=false};
+/* Balança AT55 (js/balanca.js): o peso estável entra sozinho no campo de peso de cada romaneio */
+if(window.Balanca)[['#bal-fw','#fw'],['#bal-pw','#pw'],['#bal-vw','#vw']].forEach(([b,w])=>Balanca.painel($(b),$(w)));
 
 function minfo(){tagSet('#mbt',$('#mb').value.trim());const b=$('#mb').value.trim(),a=findA(b),g=$('#mg');g.classList.remove('warn');if(!b){g.textContent='';return null}
  if(!READY){g.textContent='Carregando rebanho…';return null}
