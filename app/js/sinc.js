@@ -323,7 +323,7 @@
       const rv = T.romaneio_valores.get(r.id);
       if (rv && !rv.excluido_em) d.val = { animais: numero(rv.valor_animais), frete: +rv.frete || 0, comissao: +rv.comissao || 0, total: +rv.total,
         arrobas: numero(rv.arrobas), parr: numero(rv.preco_arroba), carc: numero(rv.arrobas_carcaca), parrc: numero(rv.preco_arroba_carcaca),
-        rateio: rv.rateio !== false, por: rv.lancado_nome || '', eu: rv.lancado_por === EU };
+        rateio: rv.rateio !== false, caixa: rv.no_caixa !== false, por: rv.lancado_nome || '', eu: rv.lancado_por === EU };
       d._rid = r.id;
       return d;
     });

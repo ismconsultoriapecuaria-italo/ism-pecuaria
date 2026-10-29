@@ -201,6 +201,9 @@
   // do romaneio (peso ÷ 30), acha o R$/@ real, rateia por animal e lança no caixa.
   const kgDe = r => r.it.reduce((s, x) => s + (num(x.p) || 0), 0);
   const v2 = v => v == null || v === '' ? '' : String(v).replace('.', ',');
+  // romaneio já com valor: mantém a escolha; senão, caixa a partir da data de início do caixa automático
+  const cxDesde = () => ((ISM.painel && ISM.painel().valores_romaneio) || {}).caixa_desde || '2026-10-29';
+  const cxPadrao = r => r.val && r.val.rateio ? r.val.caixa !== false : r.d >= cxDesde();
   function valorRomaneio(id) {
     const r = R.find(x => String(x.id) === String(id));
     if (!r || !can('fin_lancar') || !['Entrada', 'Venda'].includes(r.tipo)) return;
@@ -213,6 +216,8 @@
              campo('Comissão (R$)', 'comissao', v2(v.comissao || ''), 'text', ' inputmode="decimal" autocomplete="off"')
            : campo('Valor total da venda (R$)', 'total', v2(v.total), 'text', ' inputmode="decimal" autocomplete="off"') +
              campo('Total de @ de carcaça do frigorífico (opcional)', 'carc', v2(v.carc), 'text', ' inputmode="decimal" autocomplete="off"')) +
+      '<label class="chk" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" name="caixa"' + (cxPadrao(r) ? ' checked' : '') + ' style="width:22px;height:22px;flex:none">' +
+      '<span>Lançar também no caixa (Financeiro)<br><span class="hint" style="margin:0">Desmarque para romaneios antigos que já estão no caixa: o valor fica só no histórico dos animais.</span></span></label>' +
       '<div class="scale" id="rv-prev" aria-live="polite"></div>';
     const d = document.createElement('div');
     d.className = 'login'; d.id = 'janela-valor';
@@ -233,12 +238,14 @@
       const { tot, c } = prev();
       if (ent && !(nz('animais') > 0)) return msg('Informe o valor pago nos animais.');
       if (!ent && !(tot > 0)) return msg('Informe o valor total da venda.');
-      if (!certeza('Salvar o valor ' + (ent ? 'da compra' : 'da venda') + ': ' + brl(tot) + ' (R$ ' + nf(tot / arr, 2) + ' por @)?\n\nO valor de cada animal e o lançamento no caixa serão refeitos.')) return;
+      const cx = q('caixa').checked;
+      if (!certeza('Salvar o valor ' + (ent ? 'da compra' : 'da venda') + ': ' + brl(tot) + ' (R$ ' + nf(tot / arr, 2) + ' por @)?\n\n' +
+        (cx ? 'O valor de cada animal e o lançamento no caixa serão refeitos.' : 'O valor vai só para o histórico dos animais (nada entra no caixa).'))) return;
       const b = fm.querySelector('[type=submit]'); b.disabled = true;
       try {
-        await ISM.rpc('salvar_valor_romaneio', ent ? { p_romaneio: r._rid, p_animais: nz('animais'), p_frete: nz('frete'), p_comissao: nz('comissao') }
-                                                 : { p_romaneio: r._rid, p_total: tot, p_carcaca: c > 0 ? c : null });
-        d.remove(); msg('Valor salvo: ' + brl(tot) + ' · R$ ' + nf(tot / arr, 2) + ' por @. Caixa atualizado.');
+        await ISM.rpc('salvar_valor_romaneio', ent ? { p_romaneio: r._rid, p_animais: nz('animais'), p_frete: nz('frete'), p_comissao: nz('comissao'), p_caixa: cx }
+                                                 : { p_romaneio: r._rid, p_total: tot, p_carcaca: c > 0 ? c : null, p_caixa: cx });
+        d.remove(); msg('Valor salvo: ' + brl(tot) + ' · R$ ' + nf(tot / arr, 2) + ' por @. ' + (cx ? 'Caixa atualizado.' : 'Só no histórico dos animais.'));
         if (window.Sinc) Sinc.sincronizarAgora();
       } catch (er) { b.disabled = false; msg(er && er.message ? er.message : 'Não foi possível salvar o valor.'); }
     };

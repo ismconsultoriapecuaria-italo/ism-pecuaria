@@ -219,7 +219,8 @@ with sync_playwright() as pw:
     p.click('#nav button[data-v=reb]'); p.click('#rseg button:has-text("Romaneios")')
     ok(esperar(lambda: p.query_selector(f'[data-rv="{rid}"]') is not None, 10), 'romaneio de venda mostra o botão do valor da venda')
     p.evaluate(f"document.querySelector('[data-rv=\"{rid}\"]').click()"); p.wait_for_selector('#janela-valor form')
-    p.fill('#janela-valor [name=total]', '600000,00'); p.fill('#janela-valor [name=carc]', '2100')
+    ok(not p.is_checked('#janela-valor [name=caixa]'), 'romaneio anterior ao início do caixa automático: "lançar no caixa" vem desmarcado')
+    p.fill('#janela-valor [name=total]', '600000,00'); p.fill('#janela-valor [name=carc]', '2100'); p.check('#janela-valor [name=caixa]')
     ok('por @' in p.inner_text('#rv-prev'), 'janela mostra o R$ por @ antes de salvar: ' + p.inner_text('#rv-prev').replace(chr(10), ' | '))
     p.click('#janela-valor button[type=submit]')
     rv = f"(select id from romaneios where chave='{rid}')"
@@ -233,8 +234,10 @@ with sync_playwright() as pw:
     p.evaluate(f"valorRomaneio('{rid2}')"); p.wait_for_selector('#janela-valor form')
     p.fill('#janela-valor [name=animais]', '100000'); p.fill('#janela-valor [name=frete]', '2000'); p.fill('#janela-valor [name=comissao]', '1000')
     p.click('#janela-valor button[type=submit]')
-    ok(esperar(lambda: sql("select count(*)||'|'||sum(valor) from financeiro where origem='romaneio' and excluido_em is null and tipo='Investimento'") == '3|103000.00'), 'compra entra no caixa: animais, frete e comissão')
     rv2 = f"(select id from romaneios where chave='{rid2}')"
+    ok(esperar(lambda: sql(f"select total from romaneio_valores where romaneio_id={rv2}") == '103000.00'), 'compra antiga salva: animais + frete + comissão')
+    ok(sql("select count(*) from financeiro where origem='romaneio' and excluido_em is null and tipo='Investimento'") == '0', 'compra antiga fica só no histórico dos animais (nada no caixa)')
+    ok(esperar(lambda: p.evaluate(f"(()=>{{const r=R.find(x=>String(x.id)==='{rid2}'),a=A.find(x=>x.id===String(r.it[0].id));return a.parr>0&&a.preco>0}})()"), 15), 'histórico do animal mostra o valor pago e o R$/@ da compra')
     ok(sql(f"select count(*) from animais a join animais_valor v on v.animal_id=a.id where a.romaneio_id={rv2} and abs(v.preco_arroba - (select preco_arroba from romaneio_valores where romaneio_id={rv2}))<0.001") == sql(f"select count(*) from animais where romaneio_id={rv2} and excluido_em is null"), 'cada animal da entrada recebe o R$/@ real da compra')
     # entrada: troca um brinco
     rid = editar_rom("x=>x.tipo==='Entrada'&&x.it.some(i=>String(i.id)==='3449')", {'b0': '99449'})

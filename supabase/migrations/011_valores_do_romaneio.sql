@@ -11,6 +11,9 @@
 --   compra → Investimento · INVESTIMENTOS EM BOVINOS · COMPRA DE ANIMAIS · ANIMAIS / FRETE / COMISSÃO
 --   venda  → Receita · RECEITAS PECUÁRIAS · VENDA DE ANIMAIS · ANIMAIS
 -- Mudou o romaneio (animal a mais, peso corrigido)? O rateio e o caixa se refazem sozinhos.
+-- Romaneios antigos (já lançados no caixa à mão) podem receber o valor só para o histórico dos
+-- animais: na janela, desmarcar "Lançar também no caixa". O padrão vem da data de início do
+-- caixa automático, no painel ('valores_romaneio' → {"caixa_desde":"AAAA-MM-DD"}).
 -- Os valores antigos (preço por cabeça e @ da venda) passam para as tabelas protegidas:
 -- o vaqueiro deixa de ver qualquer valor. Esses romaneios antigos não geram caixa.
 -- Rode uma vez no SQL Editor.
@@ -209,10 +212,15 @@ create trigger romaneios_zz_caixa after update of data, excluido_em, info on pub
 -- ---------------------------------------------------------------------
 -- Tela Romaneios: lançar ou corrigir o valor da compra / da venda
 -- ---------------------------------------------------------------------
+drop function if exists public.salvar_valor_romaneio(uuid, numeric, numeric, numeric, numeric, numeric);
+create or replace function public.caixa_romaneio_desde(c uuid) returns date
+language sql stable security definer set search_path = public as $$
+  select coalesce((select (dados ->> 'caixa_desde')::date from public.painel where cliente_id = c and chave = 'valores_romaneio'), date '2026-10-29')
+$$;
 create or replace function public.salvar_valor_romaneio(p_romaneio uuid, p_animais numeric default null, p_frete numeric default 0,
-  p_comissao numeric default 0, p_total numeric default null, p_carcaca numeric default null)
+  p_comissao numeric default 0, p_total numeric default null, p_carcaca numeric default null, p_caixa boolean default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare r public.romaneios; v public.romaneio_valores; tot numeric;
+declare r public.romaneios; v public.romaneio_valores; tot numeric; cx boolean;
 begin
   select * into r from public.romaneios where id = p_romaneio and excluido_em is null;
   if r.id is null then raise exception 'Romaneio não encontrado'; end if;
@@ -231,12 +239,14 @@ begin
     if p_carcaca is not null and p_carcaca <= 0 then raise exception 'As @ de carcaça devem ser maiores que zero'; end if;
     tot := p_total;
   end if;
+  -- no caixa ou só no histórico dos animais (romaneio antigo, já lançado à mão)
+  cx := coalesce(p_caixa, r.data >= public.caixa_romaneio_desde(r.cliente_id));
   insert into public.romaneio_valores (romaneio_id, cliente_id, tipo, valor_animais, frete, comissao, total, arrobas_carcaca, rateio, no_caixa, lancado_por, lancado_nome, excluido_em)
   values (r.id, r.cliente_id, r.tipo, case when r.tipo = 'Entrada' then p_animais end,
           case when r.tipo = 'Entrada' then coalesce(p_frete, 0) else 0 end, case when r.tipo = 'Entrada' then coalesce(p_comissao, 0) else 0 end,
-          tot, case when r.tipo = 'Venda' then p_carcaca end, true, true, auth.uid(), public.meu_nome(r.cliente_id), null)
+          tot, case when r.tipo = 'Venda' then p_carcaca end, true, cx, auth.uid(), public.meu_nome(r.cliente_id), null)
   on conflict (romaneio_id) do update set valor_animais = excluded.valor_animais, frete = excluded.frete, comissao = excluded.comissao,
-    total = excluded.total, arrobas_carcaca = excluded.arrobas_carcaca, rateio = true, no_caixa = true,
+    total = excluded.total, arrobas_carcaca = excluded.arrobas_carcaca, rateio = true, no_caixa = excluded.no_caixa,
     lancado_por = coalesce(romaneio_valores.lancado_por, excluded.lancado_por), lancado_nome = coalesce(romaneio_valores.lancado_nome, excluded.lancado_nome), excluido_em = null;
   perform public.recalcular_romaneio(r.id);
   select * into v from public.romaneio_valores where romaneio_id = r.id;
@@ -247,8 +257,9 @@ revoke execute on function public.caixa_romaneio(uuid) from public, anon, authen
 revoke execute on function public.recalcular_romaneio(uuid) from public, anon, authenticated;
 revoke execute on function public.tg_rateio_romaneio() from public, anon, authenticated;
 revoke execute on function public.tg_romaneio_caixa() from public, anon, authenticated;
-revoke execute on function public.salvar_valor_romaneio(uuid, numeric, numeric, numeric, numeric, numeric) from public, anon;
-grant execute on function public.salvar_valor_romaneio(uuid, numeric, numeric, numeric, numeric, numeric) to authenticated;
+revoke execute on function public.salvar_valor_romaneio(uuid, numeric, numeric, numeric, numeric, numeric, boolean) from public, anon;
+grant execute on function public.salvar_valor_romaneio(uuid, numeric, numeric, numeric, numeric, numeric, boolean) to authenticated;
+revoke execute on function public.caixa_romaneio_desde(uuid) from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- Valores antigos: saem do alcance do vaqueiro (uma vez; repetir não estraga)

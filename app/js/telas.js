@@ -112,7 +112,7 @@ function ficha(a){const p=pts(a);let h='<table class="ft"><tr class="h"><td>Even
  p.forEach((x,i)=>{h+='<tr><td>'+(i?(x.v?'Venda':'Pesagem '+i+(x.obs?'<span class="sub2" style="display:block;font-size:12px;color:var(--mut)">'+esc(x.obs)+'</span>':'')):'Entrada')+'</td><td>'+fd(x.d)+'</td><td>'+x.p+' kg</td><td>'+(i?gmd(p[i-1],x)+' kg/dia':'–')+'</td></tr>'});h+='</table><div class="facts">';
  if(p.length>1)h+='<span>GMD total <b>'+gmd(p[0],p[p.length-1])+' kg/dia</b></span>';
  h+='<span>'+esc(a.sexo)+' · '+esc(catOf(a))+(a.raca?' · '+esc(a.raca):'')+'</span><span>Fornecedor <b>'+esc(a.forn)+'</b></span>'+(VAL()&&a.preco>0?'<span>Pago <b>'+brl(a.preco)+'</b>'+(a.parr?' · '+brl(a.parr)+'/@':'')+'</span>':'')+(a.lote?'<span>Lote <b>'+esc(a.lote)+'</b></span>':'');
- if(a.venda)h+='<span>Venda '+(VAL()?'<b>'+brl(a.venda.valor)+'</b> · ':'em '+fd(a.venda.d)+' · ')+''+esc(a.venda.comp)+' ('+esc(a.venda.dest)+')</span>';
+ if(a.venda)h+='<span>Venda '+(VAL()&&a.venda.valor!=null?'<b>'+brl(a.venda.valor)+'</b>'+(a.venda.parr?' · '+brl(a.venda.parr)+'/@':'')+' · ':'em '+fd(a.venda.d)+' · ')+''+esc(a.venda.comp)+' ('+esc(a.venda.dest)+')</span>';
  (a.san||[]).forEach(s=>{h+='<span>Protocolo '+fd(s.d)+': <b>'+esc(s.i.join(', '))+'</b></span>'});
  if(a.morte)h+='<span class="neg">Morte em <b>'+fd(a.morte.d)+'</b>'+(a.morte.causa?' · '+esc(a.morte.causa):'')+(a.morte.resp?' · '+esc(a.morte.resp):'')+'</span>';
  return h+'</div>'}
@@ -185,8 +185,8 @@ async function xp(fmt){if(!LF.length)return msg('Nenhum animal para exportar.');
  sx=f=>X.map(f).filter(x=>x!=null).reduce((s,x)=>s+x,0),
  flt=[['Categoria','#fcat'],['Fornecedor','#ff'],['Lote','#fl'],['Data de','#fd1'],['Data até','#fd2'],['Situação','#fs'],['Evento','#ft'],['Busca','#q']].filter(k=>$(k[1]).value).map(k=>k[0]+': '+$(k[1]).value).join(' | '),
  rows=[['Relatório de animais'],['Filtros',flt||'Todos os animais'],['Animais',LF.length],['Peso de entrada médio (kg)',n(av(o=>o.a.ent.p),1)],['Último peso/peso final médio (kg)',n(av(o=>o.u.p),1)],['GMD médio entre pesagens (kg/dia)',n(av(o=>o.gp),3)],['GPD médio, entrada até último peso/saída (kg/dia)',n(av(o=>o.g),3)],['Valor médio pago na compra',b(av(o=>o.a.preco>0?o.a.preco:null))],['Total pago na compra',b(sx(o=>o.a.preco))],['Valor médio de venda',b(av(o=>o.a.venda?o.a.venda.valor:null))],['Total vendido',b(sx(o=>o.a.venda?o.a.venda.valor:null))],[],
- ['Brinco','Sexo','Categoria','Raça','Fornecedor','Lote','Situação','Data de entrada','Peso de entrada (kg)','Valor pago na compra','Data do peso anterior','Peso anterior (kg)','Data do último peso','Último peso/peso final (kg)','GMD entre pesagens (kg/dia)','GPD entrada até saída (kg/dia)','Valor da venda','Comprador','Destino','Data da morte','Protocolos sanitários'],
- ...X.map(o=>{const a=o.a;return[a.id,a.sexo,catOf(a),a.raca||'',a.forn,a.lote||'',sit(a),fd(a.ent.d),a.ent.p,a.preco>0?n(a.preco,2):'',o.q?fd(o.q.d):'',o.q?o.q.p:'',fd(o.u.d),o.u.p,n(o.gp,3),n(o.g,3),a.venda?n(a.venda.valor,2):'',a.venda?a.venda.comp:'',a.venda?a.venda.dest:'',a.morte?fd(a.morte.d):'',(a.san||[]).map(s=>fd(s.d)+': '+s.i.join(', ')).join(' | ')]})];
+ ['Brinco','Sexo','Categoria','Raça','Fornecedor','Lote','Situação','Data de entrada','Peso de entrada (kg)','Valor pago na compra','R$/@ na compra','Data do peso anterior','Peso anterior (kg)','Data do último peso','Último peso/peso final (kg)','GMD entre pesagens (kg/dia)','GPD entrada até saída (kg/dia)','Valor da venda','R$/@ na venda','Comprador','Destino','Data da morte','Protocolos sanitários'],
+ ...X.map(o=>{const a=o.a;return[a.id,a.sexo,catOf(a),a.raca||'',a.forn,a.lote||'',sit(a),fd(a.ent.d),a.ent.p,a.preco>0?n(a.preco,2):'',a.parr>0?n(a.parr,2):'',o.q?fd(o.q.d):'',o.q?o.q.p:'',fd(o.u.d),o.u.p,n(o.gp,3),n(o.g,3),a.venda&&a.venda.valor!=null?n(a.venda.valor,2):'',a.venda&&a.venda.parr>0?n(a.venda.parr,2):'',a.venda?a.venda.comp:'',a.venda?a.venda.dest:'',a.morte?fd(a.morte.d):'',(a.san||[]).map(s=>fd(s.d)+': '+s.i.join(', ')).join(' | ')]})];
  try{await saveRows(d,'animais-'+(flt?'filtrados':'todos'),rows,fmt);msg('Relatório exportado.')}catch(er){xerr(er)}}
 
 /* ============ ROMANEIOS ============ */
@@ -194,7 +194,8 @@ async function xp(fmt){if(!LF.length)return msg('Nenhum animal para exportar.');
 const rval=r=>VAL()&&r.val?r.val:null;
 function rvalHead(r){const v=rval(r);if(!VAL()||!['Entrada','Venda'].includes(r.tipo))return[];if(!v)return[['Valor','ainda não lançado']];
  const o=r.tipo=='Entrada'?[['Valor dos animais',brl(v.animais||0)],['Frete',brl(v.frete||0)],['Comissão',brl(v.comissao||0)],['Total da compra',brl(v.total)]]:[['Valor total da venda',brl(v.total)]];
- if(v.parr)o.push([r.tipo=='Entrada'?'R$/@ pago':'R$/@ recebido',brl(v.parr)]);if(v.parrc)o.push(['R$/@ de carcaça',brl(v.parrc)+' ('+nf(v.carc,2)+' @)']);return o}
+ if(v.parr)o.push([r.tipo=='Entrada'?'R$/@ pago':'R$/@ recebido',brl(v.parr)]);if(v.parrc)o.push(['R$/@ de carcaça',brl(v.parrc)+' ('+nf(v.carc,2)+' @)']);
+ if(v.rateio)o.push(['No caixa',v.caixa?'sim':'não (só no histórico dos animais)']);return o}
 function rhead(r){const i=r.info||{},pr=['Protocolo sanitário',i.san&&i.san.length?i.san.join(', '):'Não'],rs=['Responsável',i.resp||'-'];
  if(r.tipo=='Entrada')return[rs,['Fornecedor',i.forn],['Lote',i.lote||'-'],['Sexo',i.sexo],...(i.cat?[['Categoria na entrada',i.cat]]:[]),pr,...rvalHead(r)];
  if(r.tipo=='Pesagem')return[rs,['Tipo',i.tipo],pr];
