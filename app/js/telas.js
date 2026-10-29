@@ -111,7 +111,7 @@ const evs=(a,t)=>{const r=[];if(!t||t=='Entrada')r.push(a.ent.d);if(!t||t=='Pesa
 function ficha(a){const p=pts(a);let h='<table class="ft"><tr class="h"><td>Evento</td><td>Data</td><td>Peso</td><td>GMD</td></tr>';
  p.forEach((x,i)=>{h+='<tr><td>'+(i?(x.v?'Venda':'Pesagem '+i+(x.obs?'<span class="sub2" style="display:block;font-size:12px;color:var(--mut)">'+esc(x.obs)+'</span>':'')):'Entrada')+'</td><td>'+fd(x.d)+'</td><td>'+x.p+' kg</td><td>'+(i?gmd(p[i-1],x)+' kg/dia':'–')+'</td></tr>'});h+='</table><div class="facts">';
  if(p.length>1)h+='<span>GMD total <b>'+gmd(p[0],p[p.length-1])+' kg/dia</b></span>';
- h+='<span>'+esc(a.sexo)+' · '+esc(catOf(a))+(a.raca?' · '+esc(a.raca):'')+'</span><span>Fornecedor <b>'+esc(a.forn)+'</b></span>'+(a.preco>0?'<span>Pago <b>'+brl(a.preco)+'</b></span>':'')+(a.lote?'<span>Lote <b>'+esc(a.lote)+'</b></span>':'');
+ h+='<span>'+esc(a.sexo)+' · '+esc(catOf(a))+(a.raca?' · '+esc(a.raca):'')+'</span><span>Fornecedor <b>'+esc(a.forn)+'</b></span>'+(VAL()&&a.preco>0?'<span>Pago <b>'+brl(a.preco)+'</b>'+(a.parr?' · '+brl(a.parr)+'/@':'')+'</span>':'')+(a.lote?'<span>Lote <b>'+esc(a.lote)+'</b></span>':'');
  if(a.venda)h+='<span>Venda '+(VAL()?'<b>'+brl(a.venda.valor)+'</b> · ':'em '+fd(a.venda.d)+' · ')+''+esc(a.venda.comp)+' ('+esc(a.venda.dest)+')</span>';
  (a.san||[]).forEach(s=>{h+='<span>Protocolo '+fd(s.d)+': <b>'+esc(s.i.join(', '))+'</b></span>'});
  if(a.morte)h+='<span class="neg">Morte em <b>'+fd(a.morte.d)+'</b>'+(a.morte.causa?' · '+esc(a.morte.causa):'')+(a.morte.resp?' · '+esc(a.morte.resp):'')+'</span>';
@@ -190,10 +190,15 @@ async function xp(fmt){if(!LF.length)return msg('Nenhum animal para exportar.');
  try{await saveRows(d,'animais-'+(flt?'filtrados':'todos'),rows,fmt);msg('Relatório exportado.')}catch(er){xerr(er)}}
 
 /* ============ ROMANEIOS ============ */
+/* Valores da compra/venda: lançados depois, em Rebanho › Romaneios (o banco rateia pelas @); o vaqueiro não vê */
+const rval=r=>VAL()&&r.val?r.val:null;
+function rvalHead(r){const v=rval(r);if(!VAL()||!['Entrada','Venda'].includes(r.tipo))return[];if(!v)return[['Valor','ainda não lançado']];
+ const o=r.tipo=='Entrada'?[['Valor dos animais',brl(v.animais||0)],['Frete',brl(v.frete||0)],['Comissão',brl(v.comissao||0)],['Total da compra',brl(v.total)]]:[['Valor total da venda',brl(v.total)]];
+ if(v.parr)o.push([r.tipo=='Entrada'?'R$/@ pago':'R$/@ recebido',brl(v.parr)]);if(v.parrc)o.push(['R$/@ de carcaça',brl(v.parrc)+' ('+nf(v.carc,2)+' @)']);return o}
 function rhead(r){const i=r.info||{},pr=['Protocolo sanitário',i.san&&i.san.length?i.san.join(', '):'Não'],rs=['Responsável',i.resp||'-'];
- if(r.tipo=='Entrada')return[rs,['Fornecedor',i.forn],['Valor por animal',brl(i.preco)],['Lote',i.lote||'-'],['Sexo',i.sexo],...(i.cat?[['Categoria na entrada',i.cat]]:[]),pr];
+ if(r.tipo=='Entrada')return[rs,['Fornecedor',i.forn],['Lote',i.lote||'-'],['Sexo',i.sexo],...(i.cat?[['Categoria na entrada',i.cat]]:[]),pr,...rvalHead(r)];
  if(r.tipo=='Pesagem')return[rs,['Tipo',i.tipo],pr];
- if(r.tipo=='Venda')return[rs,['Comprador',i.comp],['Destino',i.dest],['Valor da @',brl(i.arr)]];return[]}
+ if(r.tipo=='Venda')return[rs,['Comprador',i.comp],['Destino',i.dest],...rvalHead(r)];return[]}
 function gpRom(r,x){const a=findA(String(x.id));if(!a)return null;const pr=pts(a).filter(y=>y.d<r.d).pop();return pr?(num(x.p)-pr.p)/days(pr.d,r.d):null}
 const f3=v=>v==null||isNaN(v)?'':v.toFixed(3).replace('.',',');
 function ravg(r){const m=k=>{const v=r.it.map(x=>num(x[k])).filter(v=>!isNaN(v));return v.length?v.reduce((a,b)=>a+b,0)/v.length:null},o=[],p=m('p'),g=m('g'),v=m('valor');
@@ -204,7 +209,7 @@ function rcols(r){const b=['Brinco',x=>x.id],p=['Peso (kg)',x=>x.p],gp=['GMD ent
  return r.tipo=='Entrada'?[b,p,['Categoria',x=>catPeso(+x.p)]]:r.tipo=='Pesagem'?[b,p,gp,g,...ob]:r.tipo=='Venda'?(VAL()?[b,p,['Valor',x=>brl(x.valor)],gp,g]:[b,p,gp,g]):[b,['Causa',x=>x.causa||''],['Responsável',x=>x.resp||'']]}
 function rrender(){$('#rc').textContent=READY?R.length+' romaneios, pela data, do mais recente para o mais antigo':'';
  const open=new Set([...document.querySelectorAll('#rl details[open]')].map(d=>d.dataset.id));
- $('#rl').innerHTML=!READY?'<div class="empty">Carregando romaneios…</div>':R.slice().sort((x,y)=>y.d.localeCompare(x.d)||y.id-x.id).map(r=>{const c=rcols(r);return '<details class="rm" data-id="'+r.id+'"'+(open.has(String(r.id))?' open':'')+'><summary><span class="rt">'+r.tipo+'<em>'+fd(r.d)+'</em></span><span class="mut">'+r.it.length+' animais'+(r.tipo=='Venda'&&VAL()?' · '+brl(r.it.reduce((s,x)=>s+x.valor,0)):'')+'</span></summary><div class="body"><div class="facts">'+rhead(r).concat(ravg(r)).map(h=>'<span>'+h[0]+' <b>'+esc(h[1])+'</b></span>').join('')+'</div>'+fichaHTML(r)+'<details class="det"><summary class="mut">Detalhes por animal (GMD, GPD, valores)</summary><div class="tw"><table class="ft"><tr class="h">'+c.map(k=>'<td>'+k[0]+'</td>').join('')+'</tr>'+r.it.map(x=>'<tr>'+c.map((k,i)=>'<td>'+(i?esc(k[1](x)):tag(x.id))+'</td>').join('')+'</tr>').join('')+'</table></div></details>'+(can('exportar')?'<div class="act" style="display:flex;gap:8px"><button class="btn sm" type="button" data-r="'+r.id+'">Excel</button><button class="btn sm ghost" type="button" data-r="'+r.id+'" data-f="pdf">PDF</button></div>':'')+(podeCorrRom(r)?'<div class="act" style="margin-top:8px"><button class="btn sm ghost" type="button" data-er="'+r.id+'">Editar romaneio</button></div>':'')+'</div></details>'}).join('')||'<div class="empty"><b>Nenhum romaneio ainda</b>Os romaneios aparecem aqui conforme você lança entradas, pesagens, vendas e mortes.</div>'}
+ $('#rl').innerHTML=!READY?'<div class="empty">Carregando romaneios…</div>':R.slice().sort((x,y)=>y.d.localeCompare(x.d)||y.id-x.id).map(r=>{const c=rcols(r);return '<details class="rm" data-id="'+r.id+'"'+(open.has(String(r.id))?' open':'')+'><summary><span class="rt">'+r.tipo+'<em>'+fd(r.d)+'</em></span><span class="mut">'+r.it.length+' animais'+(VAL()&&['Entrada','Venda'].includes(r.tipo)?(r.val?' · '+brl(r.val.total)+(r.val.parr?' · '+brl(r.val.parr)+'/@':''):' · <b class="semval">sem valor</b>'):'')+'</span></summary><div class="body"><div class="facts">'+rhead(r).concat(ravg(r)).map(h=>'<span>'+h[0]+' <b>'+esc(h[1])+'</b></span>').join('')+'</div>'+fichaHTML(r)+'<details class="det"><summary class="mut">Detalhes por animal (GMD, GPD, valores)</summary><div class="tw"><table class="ft"><tr class="h">'+c.map(k=>'<td>'+k[0]+'</td>').join('')+'</tr>'+r.it.map(x=>'<tr>'+c.map((k,i)=>'<td>'+(i?esc(k[1](x)):tag(x.id))+'</td>').join('')+'</tr>').join('')+'</table></div></details>'+(can('exportar')?'<div class="act" style="display:flex;gap:8px"><button class="btn sm" type="button" data-r="'+r.id+'">Excel</button><button class="btn sm ghost" type="button" data-r="'+r.id+'" data-f="pdf">PDF</button></div>':'')+(can('fin_lancar')&&['Entrada','Venda'].includes(r.tipo)?'<div class="act" style="margin-top:8px"><button class="btn sm" type="button" data-rv="'+r.id+'">'+(r.val?'Corrigir valor da '+(r.tipo=='Entrada'?'compra':'venda'):'Lançar valor da '+(r.tipo=='Entrada'?'compra':'venda'))+'</button></div>':'')+(podeCorrRom(r)?'<div class="act" style="margin-top:8px"><button class="btn sm ghost" type="button" data-er="'+r.id+'">Editar romaneio</button></div>':'')+'</div></details>'}).join('')||'<div class="empty"><b>Nenhum romaneio ainda</b>Os romaneios aparecem aqui conforme você lança entradas, pesagens, vendas e mortes.</div>'}
 /* correção da data de um romaneio (ISM, proprietário, administrativo; ou quem lançou) */
 const podeCorrRom=r=>can('corrigir')||(can('manejo')&&(r.info||{}).por===USER.n);
 function corrigirDataRom(r,nd){
@@ -251,7 +256,7 @@ const lastW=id=>{const a=findA(String(id));if(!a)return null;const p=pts(a);retu
 const pesoIt=(r,x)=>r.tipo=='Morte'?lastW(x.id):num(x.p);
 function fichaTot(r){const W=r.it.map(x=>pesoIt(r,x)).filter(v=>v!=null&&!isNaN(v)),kg=sm(W),n=r.it.length,o=[['Nº de animais',n.toLocaleString('pt-BR')]];
  if(W.length){o.push([r.tipo=='Morte'?'Peso (último registro)':'Peso total',nf(kg,0)+' kg'],['Média',nf(kg/W.length,1)+' kg'],['Total em @',nf(kg/30,2)+' @'],['Média em @',nf(kg/30/W.length,2)+' @'])}
- if(r.tipo=='Venda'&&VAL()){const v=sm(r.it.map(x=>x.valor||0));o.push(['Valor total',brl(v)]);if(kg)o.push(['@ efetiva',brl(v/(kg/30))])}
+ const rv=rval(r);if(rv&&['Entrada','Venda'].includes(r.tipo)){o.push([r.tipo=='Entrada'?'Total da compra':'Valor total',brl(rv.total)]);if(kg)o.push([r.tipo=='Entrada'?'R$/@ pago':'@ efetiva',brl(rv.total/(kg/30))]);if(rv.parrc)o.push(['R$/@ de carcaça',brl(rv.parrc)])}
  return o}
 function fichaHTML(r,hl){const N=linOf(r),it=r.it,C=Math.max(1,Math.ceil(it.length/N)),lab=r.tipo=='Morte'?'Últ. peso':'Peso';let h='<div class="ficha">';
  for(let c=0;c<C;c++){const sl=it.slice(c*N,c*N+N),W=sl.map(x=>pesoIt(r,x)).filter(v=>v!=null&&!isNaN(v));
@@ -296,16 +301,16 @@ const findA=b=>A.find(x=>x.id==b);
 let E=null;
 const nextFree=b=>{while(A.some(a=>+a.id==b))b++;return b};
 function eshow(){$('#fb').textContent=E.n;tagSet('#fbt',E.n);info('#fi',[esc(E.f.get('forn')),'Resp.: '+esc(E.f.get('resp')),esc(E.f.get('sexo')),'<b>'+E.c+'</b> lançados','Protocolo: '+(esc(prot(E.f).join(', '))||'não')]);fichaRun('#fe-fi',E);$('#fw').value='';$('#fw').focus()}
-$('#fe').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target);if(isNaN(num(f.get('preco'))))return msg('Informe o valor por animal.');E={f,n:nextFree(+f.get('brinco')),c:0,u:[],lin:+f.get('lin')||10};e.target.hidden=true;$('#fe2').hidden=false;msg('');eshow()};
+$('#fe').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target);E={f,n:nextFree(+f.get('brinco')),c:0,u:[],lin:+f.get('lin')||10};e.target.hidden=true;$('#fe2').hidden=false;msg('');eshow()};
 function elanca(){const p=num($('#fw').value);if(isNaN(p)||p<=0)return msg('Digite o peso do animal.');if(!canW())return;const f=E.f;
  if(!pesoConfere(E,p,E.n)){$('#fw').select();return}
  if(A.some(a=>+a.id==E.n))E.n=nextFree(E.n);
- const a={id:String(E.n),sexo:f.get('sexo'),cat:catPeso(p),forn:f.get('forn'),preco:num(f.get('preco')),lote:f.get('lote'),ent:{d:f.get('data'),p},pes:[],venda:null,san:prot(f).length?[{d:f.get('data'),i:prot(f)}]:[]};
- A.push(a);putA(a);radd(E,'Entrada',f.get('data'),{forn:f.get('forn'),preco:num(f.get('preco')),lote:f.get('lote'),sexo:f.get('sexo'),san:prot(f),resp:f.get('resp')},{id:E.n,p});
+ const a={id:String(E.n),sexo:f.get('sexo'),cat:catPeso(p),forn:f.get('forn'),lote:f.get('lote'),ent:{d:f.get('data'),p},pes:[],venda:null,san:prot(f).length?[{d:f.get('data'),i:prot(f)}]:[]};
+ A.push(a);putA(a);radd(E,'Entrada',f.get('data'),{forn:f.get('forn'),lote:f.get('lote'),sexo:f.get('sexo'),san:prot(f),resp:f.get('resp')},{id:E.n,p});
  E.u.push(E.n);E.c++;msg('Brinco '+E.n+' lançado com '+p+' kg ('+catPeso(p).toLowerCase()+').');E.n=nextFree(E.n+1);eshow();refresh()}
 $('#fgo').onclick=elanca;$('#fw').onkeydown=e=>{if(e.key=='Enter'){e.preventDefault();elanca()}};
 $('#fund').onclick=()=>{if(!E.u.length)return;if(!certeza('Desfazer o último animal lançado (brinco '+E.u[E.u.length-1]+')?'))return;const id=E.u.pop();A=A.filter(a=>a.id!=String(id));delA(id);rund(E);E.c--;E.n=id;msg('Brinco '+id+' desfeito.');eshow();refresh()};
-$('#fend').onclick=()=>{if(!certeza('Encerrar este romaneio de entrada com '+E.c+' animal(is)?'))return;msg('Romaneio encerrado: '+E.c+' animais lançados.');E=null;$('#fe2').hidden=true;$('#fe').hidden=false;const kr=$('#fe-resp').value;$('#fe').reset();$('#fe-data').value=today();$('#fe-resp').value=kr;$('#fe').querySelector('.prot fieldset>div:last-child').hidden=true};
+$('#fend').onclick=()=>{if(!certeza('Encerrar este romaneio de entrada com '+E.c+' animal(is)?'))return;msg('Romaneio encerrado: '+E.c+' animais lançados. O valor da compra é lançado depois, em Rebanho › Romaneios.');E=null;$('#fe2').hidden=true;$('#fe').hidden=false;const kr=$('#fe-resp').value;$('#fe').reset();$('#fe-data').value=today();$('#fe-resp').value=kr;$('#fe').querySelector('.prot fieldset>div:last-child').hidden=true};
 
 function check(S,bSel,wSel,outSel,goSel,label,venda){tagSet(bSel+'t',$(bSel).value.trim());const g=$(outSel),b=$(bSel).value.trim(),p=num($(wSel).value),a=findA(b);g.classList.remove('warn');$(goSel).textContent=label;
  const bad=t=>{g.textContent=t;g.classList.add('warn');return null};
@@ -318,7 +323,6 @@ function check(S,bSel,wSel,outSel,goSel,label,venda){tagSet(bSel+'t',$(bSel).val
  if(isNaN(p)||p<=0){g.textContent=h;return null}
  const n={d:S.d,p},neg=p<l.p||p<a.ent.p;
  const nc=catPeso(p);if(nc!==catOf(a))h+='\nCategoria passa para '+nc.toLowerCase();
- if(venda&&VAL())h+='\nValor do animal: '+brl(p/30*S.arr);
  h+='\nGMD desde a entrada: '+gmd(a.ent,n)+' kg/dia';
  if(pt.length>1)h+='\nGMD desde a última pesagem: '+gmd(l,n)+' kg/dia';
  if(neg){h+='\nGMD negativo: confira o brinco e o peso.';g.classList.add('warn');$(goSel).textContent='Lançar mesmo assim'}
@@ -343,19 +347,19 @@ $('#pend').onclick=()=>{if(!certeza('Encerrar esta pesagem com '+P.c+' animal(is
 
 let V=null;
 const vcalc=()=>check(V,'#vb','#vw','#vg','#vgo','Lançar venda',1);
-function vnew(){$('#vb').value='';$('#vw').value='';vcalc();info('#vi',[esc(V.comp)+' ('+esc(V.dest)+')','Resp.: '+esc(V.resp),'@ '+brl(V.arr),'<b>'+V.c+'</b> vendidos',VAL()?'Total <b>'+brl(V.t)+'</b>':'']);fichaRun('#fv-fi',V);$('#vb').focus()}
-$('#fv').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target),arr=num(f.get('arr'));if(isNaN(arr)||arr<=0)return msg('Informe o valor da @.');V={d:f.get('data'),comp:f.get('comp'),dest:f.get('dest'),arr,resp:f.get('resp'),c:0,t:0,u:[],lin:+f.get('lin')||10};e.target.hidden=true;$('#fv2').hidden=false;msg('');vnew()};
+function vnew(){$('#vb').value='';$('#vw').value='';vcalc();info('#vi',[esc(V.comp)+' ('+esc(V.dest)+')','Resp.: '+esc(V.resp),'<b>'+V.c+'</b> vendidos']);fichaRun('#fv-fi',V);$('#vb').focus()}
+$('#fv').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target);V={d:f.get('data'),comp:f.get('comp'),dest:f.get('dest'),resp:f.get('resp'),c:0,t:0,u:[],lin:+f.get('lin')||10};e.target.hidden=true;$('#fv2').hidden=false;msg('');vnew()};
 $('#vb').oninput=$('#vw').oninput=()=>vcalc();
 function vlanca(){const r=vcalc();if(!r)return msg('Informe um brinco existente e o peso.');if(!canW())return;
- if(!pesoConfere(V,r.p,r.a.id)){$('#vw').select();return}const val=r.p/30*V.arr;
- r.a.venda={d:V.d,p:r.p,comp:V.comp,dest:V.dest,arr:V.arr,valor:val};putA(r.a);
- radd(V,'Venda',V.d,{comp:V.comp,dest:V.dest,arr:V.arr,resp:V.resp},{id:r.a.id,p:r.p,valor:val,g:gmd(r.a.ent,{d:V.d,p:r.p})});V.u.push(r.a.id);V.c++;V.t+=val;msg('Brinco '+r.a.id+' vendido'+(VAL()?': '+brl(val):'')+'.');vnew();refresh()}
+ if(!pesoConfere(V,r.p,r.a.id)){$('#vw').select();return}
+ r.a.venda={d:V.d,p:r.p,comp:V.comp,dest:V.dest};putA(r.a);
+ radd(V,'Venda',V.d,{comp:V.comp,dest:V.dest,resp:V.resp},{id:r.a.id,p:r.p,g:gmd(r.a.ent,{d:V.d,p:r.p})});V.u.push(r.a.id);V.c++;msg('Brinco '+r.a.id+' vendido.');vnew();refresh()}
 $('#vgo').onclick=vlanca;
 $('#vb').onkeydown=e=>{if(e.key=='Enter'){e.preventDefault();$('#vw').focus()}};
 $('#vw').onkeydown=e=>{if(e.key=='Enter'){e.preventDefault();vlanca()}};
 $('#vcl').onclick=()=>{$('#vw').value='';vcalc();$('#vw').focus()};
-$('#vund').onclick=()=>{if(!V.u.length)return;if(!certeza('Desfazer a última venda (brinco '+V.u[V.u.length-1]+')?'))return;const a=findA(V.u.pop());if(a&&a.venda){V.t-=a.venda.valor;a.venda=null;putA(a)}V.c--;rund(V);msg('Última venda desfeita.');vnew();refresh()};
-$('#vend').onclick=()=>{if(!certeza('Encerrar esta venda com '+V.c+' animal(is)'+(VAL()?', total '+brl(V.t):'')+'?'))return;msg('Venda encerrada: '+V.c+' animais, total '+brl(V.t)+'.');V=null;$('#fv2').hidden=true;$('#fv').hidden=false};
+$('#vund').onclick=()=>{if(!V.u.length)return;if(!certeza('Desfazer a última venda (brinco '+V.u[V.u.length-1]+')?'))return;const a=findA(V.u.pop());if(a&&a.venda){a.venda=null;putA(a)}V.c--;rund(V);msg('Última venda desfeita.');vnew();refresh()};
+$('#vend').onclick=()=>{if(!certeza('Encerrar esta venda com '+V.c+' animal(is)?'))return;msg('Venda encerrada: '+V.c+' animais. O valor da venda é lançado depois, em Rebanho › Romaneios.');V=null;$('#fv2').hidden=true;$('#fv').hidden=false};
 /* Balança AT55 (js/balanca.js): o peso estável entra sozinho no campo de peso de cada romaneio */
 if(window.Balanca)[['#bal-fw','#fw'],['#bal-pw','#pw'],['#bal-vw','#vw']].forEach(([b,w])=>Balanca.painel($(b),$(w)));
 
@@ -516,9 +520,9 @@ eqFill();['#fab-data','#coc-data'].forEach(s=>$(s).value=today());
 
 /* ============ IMPORTAÇÃO: núcleo (sem DOM) ============ */
 const nrm=s=>String(s??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\*/g,'').replace(/\(.*?\)/g,'').replace(/\s+/g,' ').trim();
-const IMP_SHEETS={entradas:[['brinco','brinco',1],['data','data de entrada',1],['peso','peso de entrada',1],['sexo','sexo',1],['cat','categoria'],['raca','raca'],['forn','fornecedor',1],['valor','valor pago por animal'],['lote','lote'],['prot','protocolo sanitario'],['resp','responsavel']],
+const IMP_SHEETS={entradas:[['brinco','brinco',1],['data','data de entrada',1],['peso','peso de entrada',1],['sexo','sexo',1],['cat','categoria'],['raca','raca'],['forn','fornecedor',1],['lote','lote'],['prot','protocolo sanitario'],['resp','responsavel']],
  pesagens:[['brinco','brinco',1],['data','data da pesagem',1],['peso','peso',1],['tipo','tipo'],['prot','protocolo sanitario'],['resp','responsavel'],['obs','observacao']],
- vendas:[['brinco','brinco',1],['data','data da venda',1],['peso','peso final',1],['arr','valor da @',1],['comp','comprador',1],['dest','destino'],['valor','valor do animal'],['resp','responsavel']],
+ vendas:[['brinco','brinco',1],['data','data da venda',1],['peso','peso final',1],['comp','comprador',1],['dest','destino'],['resp','responsavel']],
  mortes:[['brinco','brinco',1],['data','data da morte',1],['causa','causa'],['resp','responsavel']],
  financeiro:[['data','data',1],['tipo','tipo',1],['grupo','centro de custo',1],['sub','subcentro'],['item','item',1],['valor','valor',1],['forn','fornecedor'],['nf','nota fiscal'],['nf','nf'],['obs','observacao']]};
 const IMP_LAB={entradas:'Entradas',pesagens:'Pesagens',vendas:'Vendas',mortes:'Mortes',financeiro:'Financeiro'};
@@ -556,9 +560,9 @@ function impPlan(S,ctx){
   const sexo=psexo(g('sexo'));if(!sexo)return'sexo deve ser Macho ou Fêmea';
   const cat=catPeso(p);
   const forn=ptxt(g('forn'));if(!forn)return'fornecedor vazio';
-  const pv=pnum(g('valor')),preco=isNaN(pv)?0:pv,lote=ptxt(g('lote')),prot=plist(g('prot')),rs=resp(g('resp'));
-  AM.set(id,{id,sexo,cat,raca:ptxt(g('raca')),forn,preco,lote,ent:{d,p},pes:[],venda:null,san:prot.length?[{d,i:prot,imp:ID}]:[],imp:ID});created.add(id);changed.add(id);cnt.animais++;
-  rom('Entrada',d,[forn,lote,preco,sexo,rs].join('|'),{forn,preco,lote,sexo,san:prot,resp:rs},{id,p})});
+  const lote=ptxt(g('lote')),prot=plist(g('prot')),rs=resp(g('resp'));
+  AM.set(id,{id,sexo,cat,raca:ptxt(g('raca')),forn,lote,ent:{d,p},pes:[],venda:null,san:prot.length?[{d,i:prot,imp:ID}]:[],imp:ID});created.add(id);changed.add(id);cnt.animais++;
+  rom('Entrada',d,[forn,lote,sexo,rs].join('|'),{forn,lote,sexo,san:prot,resp:rs},{id,p})});
  sheet('pesagens',g=>{const[e,id,a,d]=base(g,'da pesagem');if(e)return e;const p=pnum(g('peso'));if(!(p>0))return'peso inválido';
   if(a.venda&&a.venda.d<d)return'pesagem depois da venda do animal';if(a.morte&&a.morte.d<d)return'pesagem depois da morte do animal';
   if((a.pes||[]).some(x=>x.d===d&&x.p===p))return'pesagem repetida (mesma data e peso)';
@@ -566,11 +570,11 @@ function impPlan(S,ctx){
   a.pes=a.pes||[];a.pes.push({d,p,t:tipo,resp:rs,obs,imp:ID});if(prot.length){a.san=a.san||[];a.san.push({d,i:prot,imp:ID})}changed.add(id);cnt.pesagens++;
   rom('Pesagem',d,[tipo,prot.join(','),rs].join('|'),{tipo,san:prot,resp:rs},{id,p,g:gm(a,d,p),obs})});
  sheet('vendas',g=>{const[e,id,a,d]=base(g,'da venda');if(e)return e;if(a.venda)return'animal já vendido em '+a.venda.d.split('-').reverse().join('/');if(a.morte)return'animal com morte lançada';
-  const p=pnum(g('peso')),arr=pnum(g('arr'));if(!(p>0))return'peso final inválido';if(!(arr>0))return'valor da @ inválido';
+  const p=pnum(g('peso'));if(!(p>0))return'peso final inválido';
   const comp=ptxt(g('comp'));if(!comp)return'comprador vazio';const dv=ptxt(g('dest')),dest=dv?(pick(dv,['Frigorífico','Outra fazenda','Atravessador'])||dv):'Frigorífico';
-  const vg=pnum(g('valor')),valor=vg>0?vg:p/30*arr,rs=resp(g('resp'));
-  a.venda={d,p,comp,dest,arr,valor,resp:rs,imp:ID};changed.add(id);cnt.vendas++;
-  rom('Venda',d,[comp,dest,arr,rs].join('|'),{comp,dest,arr,resp:rs},{id,p,valor,g:gm(a,d,p)})});
+  const rs=resp(g('resp'));
+  a.venda={d,p,comp,dest,resp:rs,imp:ID};changed.add(id);cnt.vendas++;
+  rom('Venda',d,[comp,dest,rs].join('|'),{comp,dest,resp:rs},{id,p,g:gm(a,d,p)})});
  sheet('mortes',g=>{const[e,id,a,d]=base(g,'da morte');if(e)return e;if(a.venda)return'animal já vendido';if(a.morte)return'morte já lançada para este animal';
   const causa=ptxt(g('causa')),rs=resp(g('resp'));a.morte={d,causa,resp:rs,imp:ID};changed.add(id);cnt.mortes++;
   rom('Morte',d,'',{},{id,causa,resp:rs})});

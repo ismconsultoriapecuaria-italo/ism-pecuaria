@@ -15,9 +15,11 @@
   const resto = (o, fora) => { const r = {}; for (const k in o || {}) if (!fora.includes(k) && k !== '_id') r[k] = o[k]; return r; };
 
   // Tabelas que o app guarda e sincroniza
-  const TABELAS = ['romaneios', 'animais', 'pesagens', 'vendas', 'vendas_valor', 'mortes', 'sanitario', 'pastos',
+  const TABELAS = ['romaneios', 'animais', 'pesagens', 'vendas', 'vendas_valor', 'romaneio_valores', 'animais_valor', 'mortes', 'sanitario', 'pastos',
     'supl_fabrica', 'supl_cocho', 'atividades', 'financeiro', 'importacoes', 'painel'];
-  const CHAVE_LINHA = { vendas_valor: 'venda_id', painel: 'chave' };
+  const CHAVE_LINHA = { vendas_valor: 'venda_id', romaneio_valores: 'romaneio_id', animais_valor: 'animal_id', painel: 'chave' };
+  // valores só para quem vê os totais (o banco também não entrega para os outros)
+  const SO_TOTAIS = ['vendas_valor', 'romaneio_valores', 'animais_valor'];
   const pk = t => CHAVE_LINHA[t] || 'id';
 
   // Coleções simples das telas -> tabela do banco
@@ -101,7 +103,7 @@
   function marcar(tab) {
     tabSujas.add(tab);
     const c = { romaneios: ['romaneios'], supl_fabrica: ['fabrica'], supl_cocho: ['cocho'], pastos: ['pastos'], atividades: ['atividades'],
-      financeiro: ['financeiro'], importacoes: ['importacoes'], vendas_valor: ['animais', 'romaneios'], painel: ['painel'] }[tab] || ['animais'];
+      financeiro: ['financeiro'], importacoes: ['importacoes'], vendas_valor: ['animais', 'romaneios'], romaneio_valores: ['animais', 'romaneios'], animais_valor: ['animais', 'romaneios'], painel: ['painel'] }[tab] || ['animais'];
     c.forEach(x => sujas.add(x));
     clearTimeout(timerSalvar); timerSalvar = setTimeout(salvarTabelas, 1200);
   }
@@ -168,6 +170,7 @@
     const chave = String(docId), atual = porChave('romaneios', chave);
     if (doc === null) { excluirLocal('romaneios', atual); idxRom = null; return; }
     const info = clone(doc);
+    delete info.val; delete info._rid;   // valores ficam na tabela protegida, nunca no romaneio
     // valores individuais de venda não ficam no romaneio (quem não vê totais lê o romaneio)
     if (info.tipo === 'Venda') (info.it || []).forEach(i => { delete i.valor; });
     const lin = +((doc.info || {}).lin) || 10;
@@ -197,8 +200,8 @@
     },
     vendas: {
       itens: a => a.venda ? [a.venda] : [], tipoRom: () => 'Venda',
-      linha: x => ({ data: data(x.d), peso: numero(x.p), arroba: numero(x.arr), comprador: x.comp || 'Não informado', destino: txt(x.dest),
-        responsavel: txt(x.resp), extra: resto(x, ['d', 'p', 'arr', 'comp', 'dest', 'resp', 'valor']) })
+      linha: x => ({ data: data(x.d), peso: numero(x.p), comprador: x.comp || 'Não informado', destino: txt(x.dest),
+        responsavel: txt(x.resp), extra: resto(x, ['d', 'p', 'arr', 'parr', 'comp', 'dest', 'resp', 'valor']) })
     },
     mortes: {
       itens: a => a.morte ? [a.morte] : [], tipoRom: () => 'Morte',
@@ -219,9 +222,9 @@
     }
     const ent = doc.ent || {};
     const linha = { brinco: String(doc.id), sexo: doc.sexo === 'Fêmea' ? 'Fêmea' : 'Macho', raca: txt(doc.raca), fornecedor: txt(doc.forn),
-      lote: txt(doc.lote), preco_compra: numero(doc.preco) || null, ent_data: data(ent.d), ent_peso: numero(ent.p),
+      lote: txt(doc.lote), ent_data: data(ent.d), ent_peso: numero(ent.p),
       responsavel: txt(ent.resp || doc.resp),
-      extra: Object.assign(resto(doc, ['id', 'sexo', 'raca', 'forn', 'lote', 'preco', 'ent', 'pes', 'san', 'venda', 'morte', 'resp']),
+      extra: Object.assign(resto(doc, ['id', 'sexo', 'raca', 'forn', 'lote', 'preco', 'parr', 'ent', 'pes', 'san', 'venda', 'morte', 'resp']),
         Object.keys(resto(ent, ['d', 'p', 'resp'])).length ? { ent_extra: resto(ent, ['d', 'p', 'resp']) } : {}) };
     let aid;
     if (atual) { aid = atual.id; alterarLocal('animais', atual, linha); }
@@ -243,12 +246,6 @@
         } else {
           const id = uuid(); x._id = id; usados.add(id);
           inserirLocal(tab, Object.assign({ id, animal_id: aid, romaneio_id: romaneioDe(F.tipoRom(doc, x), l.data, linha.brinco) }, l));
-          if (tab === 'vendas' && PODE_TOTAIS) T.vendas_valor.set(id, { venda_id: id, cliente_id: CLI, valor: Math.round(l.peso / 30 * l.arroba * 100) / 100 });
-        }
-        if (tab === 'vendas' && PODE_TOTAIS && numero(x.valor) > 0) {
-          const vv = T.vendas_valor.get(x._id), v = Math.round(numero(x.valor) * 100) / 100;
-          if (vv && !igual(vv.valor, v)) alterarLocal('vendas_valor', vv, { valor: v });
-          else if (!vv) { T.vendas_valor.set(x._id, { venda_id: x._id, cliente_id: CLI, valor: v }); enfileirar({ op: 'upd', tab: 'vendas_valor', id: x._id, campos: { valor: v } }); }
         }
       }
       existentes.filter(e => !usados.has(e.id)).forEach(e => excluirLocal(tab, e));
@@ -293,20 +290,21 @@
     for (const t of Object.keys(FILHOS)) for (const r of linhasDe(t)) (por[r.animal_id] = por[r.animal_id] || {})[t] = ((por[r.animal_id] || {})[t] || []).concat(r);
     const out = [];
     for (const a of linhasDe('animais')) {
-      const f = por[a.id] || {}, ex = a.extra || {};
+      const f = por[a.id] || {}, ex = a.extra || {}, av = T.animais_valor.get(a.id);
       const d = Object.assign(resto(ex, ['ent_extra']), {
-        id: a.brinco, sexo: a.sexo, raca: a.raca || '', forn: a.fornecedor || '', lote: a.lote || '', preco: +a.preco_compra || 0,
+        id: a.brinco, sexo: a.sexo, raca: a.raca || '', forn: a.fornecedor || '', lote: a.lote || '', preco: av ? +av.valor || 0 : 0,
         ent: semNulos(Object.assign({}, ex.ent_extra || {}, { d: a.ent_data, p: +a.ent_peso, resp: a.responsavel || undefined })),
         pes: (f.pesagens || []).sort((x, y) => x.data < y.data ? -1 : x.data > y.data ? 1 : 0)
           .map(r => semNulos(Object.assign({}, r.extra, { d: r.data, p: +r.peso, t: r.tipo, resp: r.responsavel, obs: r.obs, _id: r.id }))),
         san: (f.sanitario || []).sort((x, y) => x.data < y.data ? -1 : 1).map(r => Object.assign({}, r.extra, { d: r.data, i: r.itens || [], _id: r.id })),
         venda: null
       });
+      if (av && +av.preco_arroba > 0) d.parr = +av.preco_arroba;
       const v = (f.vendas || [])[0];
       if (v) {
         const vv = T.vendas_valor.get(v.id);
-        d.venda = semNulos(Object.assign({}, v.extra, { d: v.data, p: +v.peso, arr: +v.arroba, comp: v.comprador, dest: v.destino || '',
-          resp: v.responsavel, valor: vv ? +vv.valor : undefined, _id: v.id }));
+        d.venda = semNulos(Object.assign({}, v.extra, { d: v.data, p: +v.peso, comp: v.comprador, dest: v.destino || '',
+          resp: v.responsavel, valor: vv && vv.valor !== null ? +vv.valor : undefined, parr: vv && vv.preco_arroba !== null && vv.preco_arroba !== undefined ? +vv.preco_arroba : undefined, _id: v.id }));
       }
       const m = (f.mortes || [])[0];
       if (m) d.morte = semNulos(Object.assign({}, m.extra, { d: m.data, causa: m.causa || '', resp: m.responsavel, _id: m.id }));
@@ -321,6 +319,12 @@
       const d = clone(r.info || {});
       if (d.tipo === 'Venda' && PODE_TOTAIS) (d.it || []).forEach(i => { if (val.has(i.id)) i.valor = val.get(i.id); });
       if (d.id === undefined) d.id = isNaN(+r.chave) ? r.chave : +r.chave;
+      // valor lançado na aba Romaneios (só chega para quem vê os totais)
+      const rv = T.romaneio_valores.get(r.id);
+      if (rv && !rv.excluido_em) d.val = { animais: numero(rv.valor_animais), frete: +rv.frete || 0, comissao: +rv.comissao || 0, total: +rv.total,
+        arrobas: numero(rv.arrobas), parr: numero(rv.preco_arroba), carc: numero(rv.arrobas_carcaca), parrc: numero(rv.preco_arroba_carcaca),
+        rateio: rv.rateio !== false, por: rv.lancado_nome || '', eu: rv.lancado_por === EU };
+      d._rid = r.id;
       return d;
     });
   }
@@ -450,7 +454,7 @@
       if (!token) return;
       const pendentes = new Set(fila.map(o => o.tab + '|' + o.id));
       for (const t of LER) {
-        if (t === 'vendas_valor' && !PODE_TOTAIS) continue;
+        if (SO_TOTAIS.includes(t) && !PODE_TOTAIS) continue;
         const cur = cursores[t];
         const desde = cur ? new Date(new Date(cur).getTime() - 5000).toISOString() : null;
         let pag = 0, maior = cur || null;

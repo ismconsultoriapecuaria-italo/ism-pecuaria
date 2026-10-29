@@ -175,6 +175,7 @@ form .btn{margin-top:16px}
 input.big{font:600 30px/1 var(--f-m);min-height:62px;padding:10px 14px}
 .scale{background:var(--scale);color:var(--scale-ink);font:500 15px/1.6 var(--f-m);border-radius:8px;padding:12px 14px;white-space:pre-line;min-height:52px;border:2px solid transparent}
 .scale:empty::before{content:attr(data-ph);opacity:.55}
+.semval{color:var(--inv);font-weight:700}
 .scale.warn{background:var(--warn-bg);color:var(--warn-ink);border-color:var(--neg)}
 /* balança AT55 */
 .bal{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--soft)}
@@ -376,11 +377,10 @@ label.btn{color:var(--acc-ink)}
  <div id="m-ent" class="view">
   <form id="fe" class="card">
    <p class="eyebrow">Romaneio</p><h2 class="ct">Entrada de animais</h2>
-   <p class="hint">Preencha os dados do lote uma vez. Depois lance só o peso de cada animal; o brinco avança sozinho. A categoria sai do peso: até 299 kg bezerro, 300 a 399 garrote, 400 a 479 boi magro, 480 ou mais boi gordo.</p>
+   <p class="hint">Preencha os dados do lote uma vez. Depois lance só o peso de cada animal; o brinco avança sozinho. A categoria sai do peso: até 299 kg bezerro, 300 a 399 garrote, 400 a 479 boi magro, 480 ou mais boi gordo. O valor da compra é lançado depois, em Rebanho › Romaneios.</p>
    <div class="fg">
     <div class="f"><label for="fe-data">Data</label><input id="fe-data" type="date" name="data" required></div>
     <div class="f"><label for="fe-forn">Fornecedor</label><input id="fe-forn" name="forn" required></div>
-    <div class="f"><label for="fe-preco">Valor por animal, R$ (com frete e comissão)</label><input id="fe-preco" name="preco" inputmode="decimal" required></div>
     <div class="f"><label for="fe-lote">Lote (opcional)</label><input id="fe-lote" name="lote"></div>
     <div class="f"><label for="fe-sexo">Sexo</label><select id="fe-sexo" name="sexo"><option>Macho</option><option>Fêmea</option></select></div>
     <div class="f"><label for="fe-brinco">Primeiro brinco</label><input id="fe-brinco" name="brinco" type="number" inputmode="numeric" required></div>
@@ -429,12 +429,11 @@ label.btn{color:var(--acc-ink)}
  <div id="m-ven" class="view">
   <form id="fv" class="card">
    <p class="eyebrow">Romaneio</p><h2 class="ct">Venda</h2>
-   <p class="hint">Valor por animal = peso vivo ÷ 30 × valor da @.</p>
+   <p class="hint">Lance os animais e o peso final. O valor da venda é lançado depois, em Rebanho › Romaneios, e rateado pelas @ vendidas.</p>
    <div class="fg">
     <div class="f"><label for="fv-data">Data</label><input id="fv-data" type="date" name="data" required></div>
     <div class="f"><label for="fv-comp">Comprador</label><input id="fv-comp" name="comp" required></div>
     <div class="f"><label for="fv-dest">Destino</label><select id="fv-dest" name="dest"><option>Frigorífico</option><option>Outra fazenda</option><option>Atravessador</option></select></div>
-    <div class="f"><label for="fv-arr">Valor da @, R$</label><input id="fv-arr" name="arr" inputmode="decimal" required></div>
     <div class="f"><label for="fv-resp">Responsável</label><select id="fv-resp" name="resp" data-resp required></select></div>
     <div class="f"><label for="fv-lin">Linhas por coluna da ficha</label><select id="fv-lin" name="lin" data-lin><option>10</option><option>15</option><option>20</option><option>25</option><option>30</option></select></div>
    </div>

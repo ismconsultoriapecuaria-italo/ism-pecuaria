@@ -96,12 +96,10 @@
     const san = campo('Protocolo sanitário (separe por vírgula; vazio = nenhum)', 'san', (i.san || []).join(', '));
     const resp = escolha('Responsável', 'resp', pessoas(i.resp), i.resp);
     if (r.tipo === 'Entrada') return d + campo('Fornecedor', 'forn', i.forn) + campo('Lote', 'lote', i.lote) +
-      campo('Valor por animal (R$)', 'preco', i.preco ? String(i.preco).replace('.', ',') : '', 'text', ' inputmode="decimal"') +
       escolha('Sexo', 'sexo', ['Macho', 'Fêmea'], i.sexo || 'Macho') + san + resp;
     if (r.tipo === 'Pesagem') return d + campo('Tipo de pesagem', 'tipo', i.tipo || 'Rotina') + san + resp;
     if (r.tipo === 'Venda') return d + campo('Comprador', 'comp', i.comp) +
-      escolha('Destino', 'dest', [...new Set(['Frigorífico', 'Outra fazenda', 'Atravessador'].concat(i.dest ? [i.dest] : []))], i.dest) +
-      campo('Valor da @ (R$)', 'arr', String(i.arr || '').replace('.', ','), 'text', ' inputmode="decimal"') + resp;
+      escolha('Destino', 'dest', [...new Set(['Frigorífico', 'Outra fazenda', 'Atravessador'].concat(i.dest ? [i.dest] : []))], i.dest) + resp;
     return d;
   }
   function linhas(r) {
@@ -120,9 +118,9 @@
     if (!nd) return 'Informe a data.';
     if (nd > today()) return 'A data não pode ser no futuro.';
     const cab = { san: lista(f.get('san')), resp: f.get('resp') || '' };
-    if (r.tipo === 'Entrada') Object.assign(cab, { forn: String(f.get('forn') || '').trim(), lote: String(f.get('lote') || '').trim(), preco: num(f.get('preco')) || 0, sexo: f.get('sexo') });
+    if (r.tipo === 'Entrada') Object.assign(cab, { forn: String(f.get('forn') || '').trim(), lote: String(f.get('lote') || '').trim(), sexo: f.get('sexo') });
     if (r.tipo === 'Pesagem') cab.tipo = String(f.get('tipo') || '').trim() || 'Rotina';
-    if (r.tipo === 'Venda') { Object.assign(cab, { comp: String(f.get('comp') || '').trim(), dest: f.get('dest'), arr: num(f.get('arr')) }); if (!cab.comp) return 'Informe o comprador.'; if (!(cab.arr > 0)) return 'Informe o valor da @.'; }
+    if (r.tipo === 'Venda') { Object.assign(cab, { comp: String(f.get('comp') || '').trim(), dest: f.get('dest') }); if (!cab.comp) return 'Informe o comprador.'; }
     if (r.tipo === 'Entrada' && !cab.forn) return 'Informe o fornecedor.';
     const prob = [], muda = [], novoIt = [], novosIds = new Set();
     r.it.forEach((x, k) => {
@@ -139,7 +137,7 @@
         if (!nb) { prob.push('brinco vazio na linha ' + (k + 1)); return; }
         if (nb !== a.id && (findA(nb) || novosIds.has(nb))) { prob.push('brinco ' + nb + ' já existe'); return; }
         novosIds.add(nb);
-        n.id = nb; n.ent.d = nd; n.ent.p = p; n.forn = cab.forn; n.lote = cab.lote; n.preco = cab.preco; n.sexo = cab.sexo;
+        n.id = nb; n.ent.d = nd; n.ent.p = p; n.forn = cab.forn; n.lote = cab.lote; n.sexo = cab.sexo;
         if (n.cat) n.cat = catPeso(p);
         n.san = semDia(n.san, od); if (cab.san.length) n.san.push({ d: nd, i: cab.san });
         muda.push([a.id, n]); novoIt.push({ ...x, id: isNaN(+nb) ? nb : +nb, p });
@@ -157,9 +155,8 @@
         if (!n.venda || n.venda.d !== od) { prob.push(x.id + ' (venda não encontrada)'); return; }
         if (tira) { n.venda = null; muda.push([a.id, n]); return; }
         if (nd < n.ent.d) { prob.push(x.id + ' (entrada em ' + fd(n.ent.d) + ')'); return; }
-        const valor = p / 30 * cab.arr;
-        Object.assign(n.venda, { d: nd, p, comp: cab.comp, dest: cab.dest, arr: cab.arr, valor }); if (cab.resp) n.venda.resp = cab.resp;
-        muda.push([a.id, n]); novoIt.push({ ...x, p, valor, g: gmd(n.ent, { d: nd, p }) });
+        Object.assign(n.venda, { d: nd, p, comp: cab.comp, dest: cab.dest }); delete n.venda.arr; if (cab.resp) n.venda.resp = cab.resp;
+        muda.push([a.id, n]); novoIt.push({ ...x, p, g: gmd(n.ent, { d: nd, p }) });
       } else {
         if (!n.morte || n.morte.d !== od) { prob.push(x.id + ' (morte não encontrada)'); return; }
         if (tira) { n.morte = null; muda.push([a.id, n]); return; }
@@ -183,7 +180,7 @@
       putA(n);
     }
     if (!novoIt.length) { R = R.filter(x => x !== r); delR(r); }
-    else { r.d = nd; r.info = { ...i0, ...cab }; r.it = novoIt; putR(r); }
+    else { const ni = { ...i0, ...cab }; delete ni.preco; delete ni.arr; r.d = nd; r.info = ni; r.it = novoIt; putR(r); }
     return true;
   }
 
@@ -198,6 +195,56 @@
     });
   }
   window.editarRomaneio = editarRomaneio;
+
+  // ---------- valor da compra / da venda (aba Romaneios) ----------
+  // O vaqueiro lança sem valor; quem lança no caixa informa o total aqui. O banco soma as @
+  // do romaneio (peso ÷ 30), acha o R$/@ real, rateia por animal e lança no caixa.
+  const kgDe = r => r.it.reduce((s, x) => s + (num(x.p) || 0), 0);
+  const v2 = v => v == null || v === '' ? '' : String(v).replace('.', ',');
+  function valorRomaneio(id) {
+    const r = R.find(x => String(x.id) === String(id));
+    if (!r || !can('fin_lancar') || !['Entrada', 'Venda'].includes(r.tipo)) return;
+    if (!r._rid) return msg('Este romaneio ainda está sendo enviado. Espere a sincronia e tente de novo.');
+    if (!navigator.onLine) return msg('Para lançar o valor do romaneio é preciso estar com internet.');
+    const v = r.val || {}, ent = r.tipo === 'Entrada', arr = kgDe(r) / 30;
+    const corpo = '<p class="hint" style="margin:0">' + r.it.length + ' animais · ' + nf(kgDe(r), 0) + ' kg · <b>' + nf(arr, 2) + ' @</b> (peso ÷ 30)</p>' +
+      (ent ? campo('Valor pago nos animais (R$)', 'animais', v2(v.animais), 'text', ' inputmode="decimal" autocomplete="off"') +
+             campo('Frete (R$)', 'frete', v2(v.frete || ''), 'text', ' inputmode="decimal" autocomplete="off"') +
+             campo('Comissão (R$)', 'comissao', v2(v.comissao || ''), 'text', ' inputmode="decimal" autocomplete="off"')
+           : campo('Valor total da venda (R$)', 'total', v2(v.total), 'text', ' inputmode="decimal" autocomplete="off"') +
+             campo('Total de @ de carcaça do frigorífico (opcional)', 'carc', v2(v.carc), 'text', ' inputmode="decimal" autocomplete="off"')) +
+      '<div class="scale" id="rv-prev" aria-live="polite"></div>';
+    const d = document.createElement('div');
+    d.className = 'login'; d.id = 'janela-valor';
+    d.innerHTML = '<div class="lbox"><h2 class="ct">' + (ent ? 'Valor da compra' : 'Valor da venda') + ' · ' + fd(r.d) + '</h2><form class="eform" novalidate>' + corpo +
+      '<button class="btn wide" type="submit">Salvar valor</button><button class="btn ghost wide" type="button" data-fechar>Cancelar</button></form></div>';
+    document.body.appendChild(d);
+    const fm = d.querySelector('form'), q = n => fm.querySelector('[name="' + n + '"]'), nz = n => q(n) ? (num(q(n).value) || 0) : 0;
+    const prev = () => {
+      const tot = ent ? nz('animais') + nz('frete') + nz('comissao') : nz('total'), c = ent ? 0 : nz('carc');
+      d.querySelector('#rv-prev').textContent = tot > 0 ? 'Total ' + brl(tot) + '\nR$ ' + nf(tot / arr, 2) + ' por @' + (c > 0 ? '\nR$ ' + nf(tot / c, 2) + ' por @ de carcaça' : '') +
+        '\nMédia por animal: ' + brl(tot / r.it.length) : 'Digite o valor para ver o R$ por @.';
+      return { tot, c };
+    };
+    fm.addEventListener('input', prev); prev();
+    d.querySelector('[data-fechar]').onclick = () => d.remove();
+    fm.onsubmit = async e => {
+      e.preventDefault();
+      const { tot, c } = prev();
+      if (ent && !(nz('animais') > 0)) return msg('Informe o valor pago nos animais.');
+      if (!ent && !(tot > 0)) return msg('Informe o valor total da venda.');
+      if (!certeza('Salvar o valor ' + (ent ? 'da compra' : 'da venda') + ': ' + brl(tot) + ' (R$ ' + nf(tot / arr, 2) + ' por @)?\n\nO valor de cada animal e o lançamento no caixa serão refeitos.')) return;
+      const b = fm.querySelector('[type=submit]'); b.disabled = true;
+      try {
+        await ISM.rpc('salvar_valor_romaneio', ent ? { p_romaneio: r._rid, p_animais: nz('animais'), p_frete: nz('frete'), p_comissao: nz('comissao') }
+                                                 : { p_romaneio: r._rid, p_total: tot, p_carcaca: c > 0 ? c : null });
+        d.remove(); msg('Valor salvo: ' + brl(tot) + ' · R$ ' + nf(tot / arr, 2) + ' por @. Caixa atualizado.');
+        if (window.Sinc) Sinc.sincronizarAgora();
+      } catch (er) { b.disabled = false; msg(er && er.message ? er.message : 'Não foi possível salvar o valor.'); }
+    };
+  }
+  window.valorRomaneio = valorRomaneio;
+  document.addEventListener('click', e => { const b = e.target.closest('[data-rv]'); if (b) { e.stopPropagation(); valorRomaneio(b.dataset.rv); } }, true);
   window.salvarRomaneio = salvarRomaneio;
   document.addEventListener('click', e => { const b = e.target.closest('[data-er]'); if (b) { e.stopPropagation(); editarRomaneio(b.dataset.er); } }, true);
 })();

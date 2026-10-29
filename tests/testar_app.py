@@ -92,7 +92,8 @@ with sync_playwright() as pw:
     ok(navs(p) == ['man', 'reb', 'sup', 'atv', 'map'], 'Genisval vê manejo, rebanho, suplemento, atividades e mapa: ' + str(navs(p)))
     ok(p.evaluate('A.length') == 3643, 'Genisval vê o rebanho')
     ok(p.evaluate("A.filter(a=>a.venda&&a.venda.valor!==undefined).length") == 0, 'Genisval NÃO recebe o valor das vendas')
-    ok(p.evaluate("A.find(a=>a.venda).venda.arr") > 0, 'Genisval vê o valor da @')
+    ok(p.evaluate("A.every(a=>!(a.venda&&(a.venda.arr||a.venda.parr))&&!a.preco&&!a.parr)"), 'Genisval não vê valor da @ nem preço de compra')
+    ok(p.evaluate("R.every(r=>!r.val&&!(r.info||{}).arr&&!(r.info||{}).preco)"), 'romaneios sem nenhum valor para o vaqueiro')
     ok(p.evaluate("R.filter(r=>r.tipo==='Venda').every(r=>r.it.every(i=>i.valor===undefined))"), 'romaneio de venda sem valores para o vaqueiro')
     ok(p.evaluate("C.financeiro.length") == 0, 'Genisval não recebe o caixa')
     # pesagem com internet
@@ -212,10 +213,29 @@ with sync_playwright() as pw:
     br = p.evaluate(f"String(R.find(x=>String(x.id)==='{rid}').it[0].id)")
     ok(esperar(lambda: sql(f"select count(*) from pesagens p join animais a on a.id=p.animal_id where a.brinco='{br}' and p.peso=401 and p.excluido_em is null") == '1'), 'Wilmington corrige o peso de uma pesagem')
     # venda: muda a @ e tira um animal
-    rid = editar_rom("x=>x.tipo==='Venda'", {'arr': '420'}, ['r0'])
-    ok(esperar(lambda: sql("select count(*) from vendas where arroba=420 and excluido_em is null") == '129'), 'Wilmington muda o valor da @ da venda (129 animais)')
+    rid = editar_rom("x=>x.tipo==='Venda'", {}, ['r0'])
     ok(esperar(lambda: sql("select count(*) from vendas where excluido_em is not null") == '1'), 'animal tirado da venda volta ao rebanho')
-    ok(esperar(lambda: sql("select count(*) from vendas_valor vv join vendas v on v.id=vv.venda_id where v.excluido_em is null and abs(vv.valor - round(v.peso/30*420,2))<0.01") == '129'), 'valor de cada animal recalculado pela nova @')
+    # valor da venda lançado depois, na aba Romaneios: rateio pelas @ e receita no caixa
+    p.click('#nav button[data-v=reb]'); p.click('#rseg button:has-text("Romaneios")')
+    ok(esperar(lambda: p.query_selector(f'[data-rv="{rid}"]') is not None, 10), 'romaneio de venda mostra o botão do valor da venda')
+    p.evaluate(f"document.querySelector('[data-rv=\"{rid}\"]').click()"); p.wait_for_selector('#janela-valor form')
+    p.fill('#janela-valor [name=total]', '600000,00'); p.fill('#janela-valor [name=carc]', '2100')
+    ok('por @' in p.inner_text('#rv-prev'), 'janela mostra o R$ por @ antes de salvar: ' + p.inner_text('#rv-prev').replace(chr(10), ' | '))
+    p.click('#janela-valor button[type=submit]')
+    rv = f"(select id from romaneios where chave='{rid}')"
+    ok(esperar(lambda: sql(f"select total from romaneio_valores where romaneio_id={rv}") == '600000.00'), 'valor total da venda salvo no romaneio')
+    ok(esperar(lambda: abs(float(sql(f"select sum(vv.valor) from vendas_valor vv join vendas v on v.id=vv.venda_id where v.romaneio_id={rv} and v.excluido_em is null") or 0) - 600000) < 5), 'valor rateado entre os animais pelas @ (soma = total)')
+    ok(sql(f"select round(preco_arroba_carcaca,2) from romaneio_valores where romaneio_id={rv}") == '285.71', 'R$/@ de carcaça calculado (600.000 ÷ 2.100 @)')
+    ok(esperar(lambda: sql("select tipo||'|'||valor from financeiro where origem='romaneio' and excluido_em is null and chave like 'rom-%-venda'") == 'Receita|600000.00'), 'venda entra no caixa como receita')
+    ok(esperar(lambda: p.evaluate(f"(()=>{{const r=R.find(x=>String(x.id)==='{rid}');return !!(r&&r.val&&r.val.total===600000)}})()"), 15), 'valor chega ao app e aparece no romaneio')
+    # compra: animais + frete + comissão
+    rid2 = p.evaluate("String(R.find(x=>x.tipo==='Entrada').id)")
+    p.evaluate(f"valorRomaneio('{rid2}')"); p.wait_for_selector('#janela-valor form')
+    p.fill('#janela-valor [name=animais]', '100000'); p.fill('#janela-valor [name=frete]', '2000'); p.fill('#janela-valor [name=comissao]', '1000')
+    p.click('#janela-valor button[type=submit]')
+    ok(esperar(lambda: sql("select count(*)||'|'||sum(valor) from financeiro where origem='romaneio' and excluido_em is null and tipo='Investimento'") == '3|103000.00'), 'compra entra no caixa: animais, frete e comissão')
+    rv2 = f"(select id from romaneios where chave='{rid2}')"
+    ok(sql(f"select count(*) from animais a join animais_valor v on v.animal_id=a.id where a.romaneio_id={rv2} and abs(v.preco_arroba - (select preco_arroba from romaneio_valores where romaneio_id={rv2}))<0.001") == sql(f"select count(*) from animais where romaneio_id={rv2} and excluido_em is null"), 'cada animal da entrada recebe o R$/@ real da compra')
     # entrada: troca um brinco
     rid = editar_rom("x=>x.tipo==='Entrada'&&x.it.some(i=>String(i.id)==='3449')", {'b0': '99449'})
     ok(esperar(lambda: sql("select count(*) from animais where brinco='99449' and excluido_em is null") == '1' and sql("select count(*) from animais where brinco='3449' and excluido_em is null") == '0'), 'Wilmington troca um brinco na entrada')

@@ -74,10 +74,12 @@ print('--- Genisval (vaqueiro)')
 caso('não vê caixa', 'genisval', conta('financeiro'), 0)
 caso('não lança caixa', 'genisval', ins_fin, 'erro')
 caso('vê rebanho sem precisar de duas etapas', 'genisval', conta('animais'), 2, aal='aal1')
-caso('vê preço por cabeça', 'genisval', "select preco_compra from public.animais where brinco='1001'", '2500.00', aal='aal1')
+caso('não vê preço por cabeça (saiu do cadastro do animal)', 'genisval', "select coalesce(preco_compra::text,'nada') from public.animais where brinco='1001'", 'nada', aal='aal1')
+caso('não vê valor de compra dos animais', 'genisval', conta('animais_valor'), 0, aal='aal1')
+caso('não vê valor dos romaneios', 'genisval', conta('romaneio_valores'), 0, aal='aal1')
 caso('lança pesagem', 'genisval', ins_pes, 'ok', aal='aal1')
 caso('lança venda mas não vê o total', 'genisval', ins_venda + "; select count(*) from public.vendas_valor", 0, aal='aal1')
-caso('vê o valor da @ da venda', 'genisval', ins_venda + "; select arroba from public.vendas", '300.00', aal='aal1')
+caso('lança venda sem valor da @', 'genisval', f"insert into public.vendas (cliente_id,animal_id,data,peso,comprador) values ({B},{A1},'2026-04-01',540,'Frigorífico X') returning 1", 1, aal='aal1')
 caso('lança cocho', 'genisval', ins_cocho, 'ok', aal='aal1')
 caso('lança fábrica', 'genisval', ins_fab, 'ok', aal='aal1')
 caso('vê só atividades operacionais', 'genisval', conta('atividades'), 2, aal='aal1')
@@ -218,6 +220,31 @@ print(('OK   ' if ok else 'FALHOU ') + '[genisval] o próprio vaqueiro conclui e
 caso('atividade sem repetição continua concluída', 'italo',
      "update public.atividades set situacao=2, concluida_em='2026-10-23' where titulo='Consertar cerca';\n"
      "select situacao from public.atividades where titulo='Consertar cerca'", 2)
+
+
+print('--- Valores lançados no romaneio (migração 011)')
+RE = "'40000000-0000-0000-0000-000000000002'"; RV = "'40000000-0000-0000-0000-000000000003'"
+ent = (f"insert into public.romaneios (id,cliente_id,tipo,data,info) values ({RE},{B},'Entrada','2026-05-01','{{\"forn\":\"Fazenda X\"}}');"
+       f"insert into public.animais (cliente_id,brinco,ent_data,ent_peso,romaneio_id) values ({B},'2001','2026-05-01',300,{RE}),({B},'2002','2026-05-01',330,{RE}),({B},'2003','2026-05-01',270,{RE});")
+salva_ent = f"select 1 from public.salvar_valor_romaneio({RE}, 90000, 3000, 2000);"
+ven = (f"insert into public.romaneios (id,cliente_id,tipo,data,info) values ({RV},{B},'Venda','2026-06-01','{{\"comp\":\"Frigorífico Y\"}}');"
+       f"insert into public.vendas (cliente_id,animal_id,data,peso,comprador,romaneio_id) values ({B},{A1},'2026-06-01',540,'Frigorífico Y',{RV}),({B},'20000000-0000-0000-0000-000000000002','2026-06-01',480,'Frigorífico Y',{RV});")
+caso('valores antigos: preço por cabeça foi para a tabela protegida', 'wilmington', "select valor from public.animais_valor where animal_id=" + A1, '2500.00')
+caso('valores antigos: R$/@ de cada animal calculado', 'wilmington', "select round(preco_arroba,2) from public.animais_valor where animal_id=" + A1, '300.00')
+caso('administrativo lança o valor da compra: R$/@ real do romaneio', 'josiane', ent + salva_ent + f"select round(preco_arroba,2)||'|'||arrobas||'|'||total from public.romaneio_valores where romaneio_id={RE}", '3166.67|30.00|95000.00')
+caso('cada animal recebe o valor pelo rateio das @', 'josiane', ent + salva_ent + "select v.valor from public.animais_valor v join public.animais a on a.id=v.animal_id where a.brinco='2001'", '31666.67')
+caso('compra entra no caixa: animais, frete e comissão', 'josiane', ent + salva_ent + "select count(*)||'|'||sum(valor)||'|'||min(tipo) from public.financeiro where origem='romaneio' and excluido_em is null", '3|95000.00|Investimento')
+caso('animal a mais no romaneio: rateio refeito', 'josiane', ent + salva_ent + f"insert into public.animais (cliente_id,brinco,ent_data,ent_peso,romaneio_id) values ({B},'2004','2026-05-01',300,{RE}); select round(preco_arroba,2) from public.romaneio_valores where romaneio_id={RE}", '2375.00')
+caso('corrige o frete: caixa acompanha', 'josiane', ent + salva_ent + f"select 1 from public.salvar_valor_romaneio({RE}, 90000, 5000, 2000); select sum(valor) from public.financeiro where origem='romaneio' and excluido_em is null", '97000.00')
+caso('vaqueiro não lança valor no romaneio', 'genisval', ent + salva_ent, 'erro', aal='aal1')
+caso('proprietário lança o valor da venda: R$/@ viva e de carcaça', 'wilmington', ven + f"select 1 from public.salvar_valor_romaneio({RV}, p_total => 51000, p_carcaca => 36); select round(preco_arroba,2)||'|'||round(preco_arroba_carcaca,2) from public.romaneio_valores where romaneio_id={RV}", '1500.00|1416.67')
+caso('cada venda recebe o valor pelo rateio', 'wilmington', ven + f"select 1 from public.salvar_valor_romaneio({RV}, p_total => 51000); select valor from public.vendas_valor vv join public.vendas v on v.id=vv.venda_id where v.romaneio_id={RV} and v.animal_id={A1}", '27000.00')
+caso('venda entra no caixa como receita', 'wilmington', ven + f"select 1 from public.salvar_valor_romaneio({RV}, p_total => 51000); select tipo||'|'||grupo||'|'||valor from public.financeiro where origem='romaneio' and excluido_em is null", 'Receita|RECEITAS PECUÁRIAS|51000.00')
+caso('romaneio excluído: sai do caixa', 'wilmington', ven + f"select 1 from public.salvar_valor_romaneio({RV}, p_total => 51000); update public.romaneios set excluido_em=now() where id={RV}; select count(*) from public.financeiro where origem='romaneio' and excluido_em is null", 0)
+troca = lambda u, aal='aal2': "do $x$ begin perform set_config('request.jwt.claims', '" + json.dumps({'sub': '00000000-0000-0000-0000-%012d' % U[u], 'aal': aal, 'role': 'authenticated'}) + "', true); end $x$;"
+caso('administrativo não corrige valor lançado pelo proprietário', 'wilmington', ent + salva_ent + troca('josiane') + f"select public.salvar_valor_romaneio({RE}, 1000, 0, 0)", 'erro')
+caso('valor errado é recusado', 'josiane', ent + f"select public.salvar_valor_romaneio({RE}, 0, 0, 0)", 'erro')
+caso('ninguém grava direto na tabela de valores', 'wilmington', f"insert into public.romaneio_valores (romaneio_id,cliente_id,tipo,total) values ('40000000-0000-0000-0000-000000000001',{B},'Entrada',1)", 'erro')
 
 print('--- Funções de administração fechadas (migração 010)')
 caso('vaqueiro não consegue se dar o perfil ISM', 'genisval', "select public.vincular_usuario('genisval@barramas.ism','Fazenda Barramas','Genisval','x','{ISM}')", 'erro', aal='aal1')
