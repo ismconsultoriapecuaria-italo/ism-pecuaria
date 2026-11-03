@@ -1,0 +1,68 @@
+name: APK Faixas de Aplicação
+
+on:
+  push:
+    paths:
+      - 'apps/faixas-android/**'
+      - '.github/workflows/faixas-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/faixas-android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Preparar chave de assinatura
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FAIXAS_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.FAIXAS_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > app/assinatura.jks
+            echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Segredos FAIXAS_KEYSTORE_* não configurados: APK assinado com chave temporária (atualizações vão exigir desinstalar antes)."
+            SENHA=$(openssl rand -hex 16)
+            echo "::add-mask::$SENHA"
+            keytool -genkeypair -keystore app/assinatura.jks -storepass "$SENHA" -keypass "$SENHA" -alias ism -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=ISM Temporaria, C=BR"
+            echo "KEYSTORE_PASSWORD=$SENHA" >> "$GITHUB_ENV"
+          fi
+
+      - name: Compilar APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          gradle assembleRelease --no-daemon --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk "FaixasISM-1.0.${{ github.run_number }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FaixasISM-apk
+          path: apps/faixas-android/FaixasISM-*.apk
+
+      - name: Publicar versão para download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: faixas-v1.0.${{ github.run_number }}
+          name: Faixas de Aplicação 1.0.${{ github.run_number }}
+          make_latest: true
+          body: |
+            App Android de monitoramento de faixas de aplicação por GPS (ISM Consultoria Pecuária).
+            Para instalar: baixe o arquivo .apk abaixo pelo celular e abra. Se o Android pedir, permita "instalar apps desta fonte".
+          files: apps/faixas-android/FaixasISM-*.apk

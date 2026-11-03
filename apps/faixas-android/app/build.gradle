@@ -1,0 +1,44 @@
+plugins {
+    id 'com.android.application'
+}
+
+def codigoVersao = (System.getenv("VERSION_CODE") ?: "1").toInteger()
+
+android {
+    namespace 'br.com.ism.faixas'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'br.com.ism.faixas'
+        minSdk 24
+        targetSdk 34
+        versionCode codigoVersao
+        versionName "1.0." + codigoVersao
+    }
+
+    signingConfigs {
+        release {
+            // A chave não fica no repositório: o workflow grava em app/assinatura.jks a partir dos segredos do GitHub.
+            storeFile file('assinatura.jks')
+            storePassword System.getenv("KEYSTORE_PASSWORD")
+            keyAlias 'ism'
+            keyPassword System.getenv("KEYSTORE_PASSWORD")
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mata">#1F3D2B</color>
+    <color name="fundo">#EDF0E8</color>
+    <style name="Tema" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/mata</item>
+        <item name="android:navigationBarColor">@color/mata</item>
+        <item name="android:windowBackground">@color/fundo</item>
+        <item name="android:colorPrimary">@color/mata</item>
+        <item name="android:colorAccent">#6E9B45</item>
+    </style>
+</resources>
