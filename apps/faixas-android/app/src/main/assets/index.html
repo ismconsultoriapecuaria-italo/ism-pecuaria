@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: app de uma tela para cabine — faixa verde no topo, mapa ocupa o meio, painel de leitura e botão da barra na base */
+/* Layout: app de uma tela para cabine — faixa verde no topo, mapa ocupa o meio, painel de leitura e botão de aplicação na base */
 :root{
   --mata:#1F3D2B; --pasto:#6E9B45; --bg:#EDF0E8; --card:#FBFCF7; --fg:#16231A; --muted:#5C6B5F; --line:#D3DACB;
   --solo:#E2DFCF; --grade:#D3CFBC; --apl:#7FAF52; --sob:#E3A23A; --sob3:#B5432A; --neg:#B5432A; --brinco:#E6CD6A; --brinco-b:#C4A843;
@@ -59,7 +59,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .lt.alerta dd{color:var(--neg)}
 .comandos{display:grid;grid-template-columns:auto 1fr auto;gap:8px}
 .btn{height:52px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font:700 14px var(--f-titulo);font-stretch:80%;text-transform:uppercase;letter-spacing:.06em;padding:0 14px;cursor:pointer}
-.btn:focus-visible,.flut button:focus-visible,.cfg input:focus-visible{outline:2px solid var(--pasto);outline-offset:2px}
+.btn:focus-visible,.flut button:focus-visible,.cfg input:focus-visible,.cfg select:focus-visible{outline:2px solid var(--pasto);outline-offset:2px}
 #barra{font-size:17px;background:var(--bg);border:2px solid var(--line)}
 #barra[aria-pressed="true"]{background:var(--pasto);border-color:var(--pasto);color:#10200F}
 #barra:disabled{opacity:.5}
@@ -71,7 +71,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .campos label{display:grid;gap:4px;font:600 10px var(--f-titulo);font-stretch:85%;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .campos label.larga{grid-column:1/-1}
-.cfg input{height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font:500 16px var(--f-mono);padding:0 10px;width:100%;box-sizing:border-box}
+.cfg input,.cfg select{height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font:500 16px var(--f-mono);padding:0 10px;width:100%;box-sizing:border-box}
 .acoes{display:flex;flex-wrap:wrap;gap:8px}
 .acoes .btn{flex:1 1 140px;height:46px;font-size:13px}
 .btn.perigo{color:var(--neg);border-color:var(--neg)}
@@ -85,7 +85,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 <div id="app">
   <header class="band">
     <div class="marca">ISM<small>PECUÁRIA</small></div>
-    <div class="titulo">Faixas de aplicação<span id="subt">Talhão 1 · barra 24 m</span></div>
+    <div class="titulo">Faixas de aplicação<span id="subt">Talhão 1 · faixa 24 m</span></div>
     <div class="chip" id="chip" data-s="off"><i></i><span id="chipTxt">Sem GPS</span></div>
   </header>
 
@@ -110,12 +110,13 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       <h2>Ajustes da aplicação <button id="cfgX" aria-label="Fechar">×</button></h2>
       <div class="campos">
         <label class="larga">Talhão / produto<input id="iNome" type="text" value="Talhão 1"></label>
-        <label>Largura da barra (m)<input id="iLarg" type="number" inputmode="decimal" min="1" max="60" step="0.5" value="24"></label>
-        <label>Taxa (L/ha)<input id="iTaxa" type="number" inputmode="decimal" min="0" step="1" value="100"></label>
+        <label>Faixa de aplicação (m)<input id="iLarg" type="number" inputmode="decimal" min="1" max="100" step="0.5" value="24"></label>
+        <label>Taxa de aplicação<input id="iTaxa" type="number" inputmode="decimal" min="0" step="1" value="100"></label>
+        <label>Unidade da taxa<select id="iUn"><option value="L">L/ha (líquido)</option><option value="kg">kg/ha (sólido)</option></select></label>
         <label>Precisão mínima (m)<input id="iPrec" type="number" inputmode="decimal" min="2" max="50" step="1" value="10"></label>
-        <label>Simulação (vezes mais rápido)<input id="iVel" type="number" inputmode="numeric" min="1" max="20" step="1" value="5"></label>
+        <label class="larga">Simulação (vezes mais rápido)<input id="iVel" type="number" inputmode="numeric" min="1" max="20" step="1" value="5"></label>
       </div>
-      <p class="nota">A imagem de satélite precisa de internet. Com sinal na sede, use "Baixar mapa da área" para guardar a imagem de uns 3 km ao redor e usar no campo sem sinal. Pontos com precisão pior que o limite são descartados. GPS de celular costuma ficar entre 3 e 5 m, então sobreposições menores que isso não são confiáveis.</p>
+      <p class="nota">A imagem de satélite precisa de internet. Com sinal na sede, use "Baixar mapa da área" para guardar a imagem num raio de 2 km e usar no campo sem sinal. Pontos com precisão pior que o limite são descartados. GPS de celular costuma ficar entre 3 e 5 m, então sobreposições menores que isso não são confiáveis.</p>
       <div class="acoes">
         <button class="btn" id="bSim">Simular aplicação</button>
         <button class="btn" id="bMapa" hidden>Baixar mapa da área (offline)</button>
@@ -132,12 +133,12 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       <div class="lt" id="ltSob"><dt>Sobreposição</dt><dd id="vSob">0,00<small>ha</small></dd></div>
       <div class="lt"><dt>Sobrep. %</dt><dd id="vSobP">0,0<small>%</small></dd></div>
       <div class="lt"><dt>Velocidade</dt><dd id="vVel">–<small>km/h</small></dd></div>
-      <div class="lt"><dt>Volume est.</dt><dd id="vVol">0<small>L</small></dd></div>
+      <div class="lt"><dt>Produto est.</dt><dd id="vVol">0<small>L</small></dd></div>
       <div class="lt"><dt>Rendimento</dt><dd id="vRend">–<small>ha/h</small></dd></div>
     </dl>
     <div class="comandos">
       <button class="btn prim" id="bGps">Ligar GPS</button>
-      <button class="btn" id="barra" aria-pressed="false">Barra desligada</button>
+      <button class="btn" id="barra" aria-pressed="false">Aplicação parada</button>
       <button class="btn" id="bCfg" aria-label="Ajustes">Ajustes</button>
     </div>
   </footer>
@@ -148,7 +149,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 "use strict";
 var $=function(id){return document.getElementById(id)};
 var CELL=1, TILE=256, STEP=0.5;
-var S={nome:"Talhão 1",W:24,taxa:100,maxAcc:10,simVel:5,sat:true};
+var S={nome:"Talhão 1",W:24,taxa:100,un:"L",maxAcc:10,simVel:5,sat:true};
 var pts=[], tiles=new Map(), cobertas=0, sobrepostas=0, distApl=0, tempoApl=0;
 var origem=null, barra=false, fonte=null, watchId=null, simTimer=null, demo=false;
 var view={cx:0,cy:0,esc:1.2}, seguir=true, sujo=true, ultVel=null, wake=null;
@@ -209,9 +210,9 @@ function atualiza(){
   $("ltSob").classList.toggle("alerta",p>8);
   $("vVel").innerHTML=(ultVel!=null?fmt(ultVel*3.6,1):"–")+"<small>km/h</small>";
   var vol=distApl*S.W/1e4*S.taxa;
-  $("vVol").innerHTML=fmt(Math.round(vol),0)+"<small>L</small>";
+  $("vVol").innerHTML=fmt(Math.round(vol),0)+"<small>"+S.un+"</small>";
   $("vRend").innerHTML=(tempoApl>60?fmt(ha/(tempoApl/3600),1):"–")+"<small>ha/h</small>";
-  $("subt").textContent=S.nome+" · barra "+fmt(S.W,S.W%1?1:0)+" m · "+fmt(S.taxa,0)+" L/ha";}
+  $("subt").textContent=S.nome+" · faixa "+fmt(S.W,S.W%1?1:0)+" m · "+fmt(S.taxa,0)+" "+S.un+"/ha";}
 
 /* ---------- desenho ---------- */
 var cv=$("cv"),ctx=cv.getContext("2d"),dpr=1,W=0,H=0;
@@ -252,36 +253,51 @@ function desenha(){
   ctx.fillStyle=cEsc;ctx.font="11px 'IBM Plex Mono',monospace";ctx.textAlign="center";
   ctx.fillText(g>=1000?fmt(g/1000,0)+" km":fmt(g,0)+" m",bx+px/2,by-7);ctx.shadowBlur=0;}
 /* ---------- imagem de satélite (tiles Web Mercator) ---------- */
-var TURL="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/";
-var imgs=new Map(),carregando=0,fila=[];
+var HOSTS=["https://server.arcgisonline.com","https://services.arcgisonline.com"];
+var TPATH="/ArcGIS/rest/services/World_Imagery/MapServer/tile/";
+var ZMAX=18,MAXCONC=12,imgs=new Map(),ativos=0,fila=[],zTrava=null;
+function turl(z,y,x){return HOSTS[(x+y)&1]+TPATH+z+"/"+y+"/"+x}
 function t2lon(x,z){return x/Math.pow(2,z)*360-180}
 function t2lat(y,z){var n=Math.PI*(1-2*y/Math.pow(2,z));return Math.atan(Math.sinh(n))*180/Math.PI}
 function lon2t(lon,z){return(lon+180)/360*Math.pow(2,z)}
 function lat2t(lat,z){var r=lat*Math.PI/180;return(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*Math.pow(2,z)}
-function pegaImg(z,x,y,criar){var k=z+"/"+y+"/"+x,o=imgs.get(k);
-  if(o){imgs.delete(k);imgs.set(k,o);return o;}
-  if(!criar)return null;
-  o={img:new Image(),ok:false,erro:false};imgs.set(k,o);fila.push({o:o,url:TURL+k});puxaFila();
-  if(imgs.size>500){var vel=imgs.keys().next().value;imgs.delete(vel);}
+/* estado: 0 aguardando, 1 baixando, 2 pronta, 3 falhou */
+function tileObj(z,x,y){var k=z+"/"+y+"/"+x,o=imgs.get(k);
+  if(!o){o={z:z,x:x,y:y,e:0,img:null};imgs.set(k,o);
+    if(imgs.size>700){for(var [kk,oo] of imgs){if(imgs.size<=550)break;if(oo.e!==1)imgs.delete(kk);}}}
   return o;}
-function puxaFila(){while(carregando<8&&fila.length){var it=fila.pop();carregando++;
-  (function(it){it.o.img.onload=function(){it.o.ok=true;carregando--;sujo=true;puxaFila();};
-   it.o.img.onerror=function(){it.o.erro=true;carregando--;puxaFila();};
-   it.o.img.src=it.url;})(it);}}
+function tileVe(z,x,y){return imgs.get(z+"/"+y+"/"+x)}
+function baixaTile(o){o.e=1;ativos++;var im=new Image();im.decoding="async";
+  im.onload=function(){o.img=im;o.e=2;ativos--;sujo=true;bomba();};
+  im.onerror=function(){o.e=3;ativos--;sujo=true;bomba();};
+  im.src=turl(o.z,o.y,o.x);}
+function bomba(){while(ativos<MAXCONC&&fila.length){var o=fila.shift();if(o.e===0)baixaTile(o);}}
+function zIdeal(){var z=Math.round(Math.log2(156543.03*Math.cos(origem.lat*Math.PI/180)*view.esc*Math.min(dpr,1.5)));
+  return Math.max(2,Math.min(ZMAX,z));}
 function desenhaSat(){
-  var lat=origem.lat,z=Math.round(Math.log2(156543.03*Math.cos(lat*Math.PI/180)*view.esc*Math.min(dpr,2)));
-  z=Math.max(3,Math.min(18,z));
+  var z=zTrava!=null?zTrava:zIdeal();
   var a=desproj(view.cx-W/2/view.esc,view.cy-H/2/view.esc),b=desproj(view.cx+W/2/view.esc,view.cy+H/2/view.esc);
-  var x0=Math.floor(lon2t(a.lon,z)),x1=Math.floor(lon2t(b.lon,z)),y0=Math.floor(lat2t(a.lat,z)),y1=Math.floor(lat2t(b.lat,z));
-  if((x1-x0+1)*(y1-y0+1)>120)return;
-  fila.length=0;
+  var x0,x1,y0,y1;
+  for(;;){x0=Math.floor(lon2t(a.lon,z));x1=Math.floor(lon2t(b.lon,z));y0=Math.floor(lat2t(a.lat,z));y1=Math.floor(lat2t(b.lat,z));
+    if((x1-x0+1)*(y1-y0+1)<=150||z<=2)break;z--;}
+  var cxT=lon2t(desproj(view.cx,view.cy).lon,z),cyT=lat2t(desproj(view.cx,view.cy).lat,z);
+  var quero=[];
   for(var ty=y0;ty<=y1;ty++)for(var tx=x0;tx<=x1;tx++){
     var nw=proj(t2lat(ty,z),t2lon(tx,z)),se=proj(t2lat(ty+1,z),t2lon(tx+1,z));
-    var X=sx(nw.x),Y=sy(nw.y),w=sx(se.x)-X,h=sy(se.y)-Y;
-    var o=pegaImg(z,tx,ty,true);
-    if(o.ok){ctx.drawImage(o.img,X,Y,w+0.6,h+0.6);continue;}
-    for(var d=1;d<=4;d++){var pz=z-d,f=Math.pow(2,d),px=Math.floor(tx/f),py=Math.floor(ty/f),p=pegaImg(pz,px,py,false);
-      if(p&&p.ok){var s=256/f;ctx.drawImage(p.img,(tx-px*f)*s,(ty-py*f)*s,s,s,X,Y,w+0.6,h+0.6);break;}}}}
+    var X=sx(nw.x),Y=sy(nw.y),w=sx(se.x)-X+0.6,h=sy(se.y)-Y+0.6;
+    var o=tileObj(z,tx,ty);
+    if(o.e===2){ctx.drawImage(o.img,X,Y,w,h);continue;}
+    if(o.e===0){o.d=(tx+.5-cxT)*(tx+.5-cxT)+(ty+.5-cyT)*(ty+.5-cyT);quero.push(o);}
+    /* enquanto não chega: usa a imagem mais próxima que já existe (pai mais grosso ou filhos mais finos) */
+    var feito=false,falhou=o.e===3;
+    for(var d=1;d<=6&&z-d>=2;d++){var f=1<<d,px=tx>>d,py=ty>>d,p=falhou?tileObj(z-d,px,py):tileVe(z-d,px,py);
+      if(!p)continue;
+      if(p.e===2){var s=256/f;ctx.drawImage(p.img,(tx-px*f)*s,(ty-py*f)*s,s,s,X,Y,w,h);feito=true;break;}
+      if(falhou){if(p.e===0){p.d=o.d||0;quero.push(p);}if(p.e!==3)break;}}
+    if(!feito&&z<ZMAX){for(var q=0;q<4;q++){var c=tileVe(z+1,tx*2+(q&1),ty*2+(q>>1));
+      if(c&&c.e===2)ctx.drawImage(c.img,X+(q&1)*w/2,Y+(q>>1)*h/2,w/2+0.6,h/2+0.6);}}}
+  quero.sort(function(p,q){return p.d-q.d});
+  fila=quero;bomba();}
 function defSat(v){S.sat=v;$("sat").setAttribute("aria-pressed",v);$("atrib").hidden=!v;sujo=true;}
 (function loop(){if(sujo)desenha();requestAnimationFrame(loop)})();
 new ResizeObserver(tamanho).observe(cv);
@@ -289,12 +305,12 @@ new ResizeObserver(tamanho).observe(cv);
 /* ---------- gestos ---------- */
 var ponteiros=new Map(),pinch0=null;
 cv.addEventListener("pointerdown",function(e){cv.setPointerCapture(e.pointerId);ponteiros.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(ponteiros.size===2){var a=[...ponteiros.values()];pinch0={d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),esc:view.esc};}});
+  if(ponteiros.size===2){if(S.sat&&origem)zTrava=zIdeal();var a=[...ponteiros.values()];pinch0={d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),esc:view.esc};}});
 cv.addEventListener("pointermove",function(e){var p=ponteiros.get(e.pointerId);if(!p)return;
   if(ponteiros.size===1){view.cx-=(e.clientX-p.x)/view.esc;view.cy-=(e.clientY-p.y)/view.esc;defSeguir(false);sujo=true;}
   p.x=e.clientX;p.y=e.clientY;
   if(ponteiros.size===2&&pinch0){var a=[...ponteiros.values()];var d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);zoomPara(pinch0.esc*d/pinch0.d);}});
-function solta(e){ponteiros.delete(e.pointerId);if(ponteiros.size<2)pinch0=null;}
+function solta(e){ponteiros.delete(e.pointerId);if(ponteiros.size<2){pinch0=null;if(zTrava!=null){zTrava=null;sujo=true;}}}
 cv.addEventListener("pointerup",solta);cv.addEventListener("pointercancel",solta);
 cv.addEventListener("wheel",function(e){e.preventDefault();zoomPara(view.esc*Math.exp(-e.deltaY*0.0015));},{passive:false});
 function zoomPara(e){view.esc=Math.min(20,Math.max(0.05,e));sujo=true;}
@@ -314,7 +330,7 @@ function defBarra(v){
   if(v===barra)return;barra=v;
   var u=pts[pts.length-1];
   if(u){var c=Object.assign({},u);c.on=v;c.t=u.t;pts.push(c);}
-  $("barra").setAttribute("aria-pressed",v);$("barra").textContent=v?"Barra ligada":"Barra desligada";sujo=true;}
+  $("barra").setAttribute("aria-pressed",v);$("barra").textContent=v?"Aplicando":"Aplicação parada";sujo=true;}
 $("barra").onclick=function(){defBarra(!barra)};
 
 /* ---------- GPS ---------- */
@@ -383,9 +399,9 @@ function encaixa(){var b=limites();if(!W)tamanho();var w=b.x1-b.x0+S.W*2,h=b.y1-
 $("bCfg").onclick=function(){$("cfg").hidden=!$("cfg").hidden};
 $("cfgX").onclick=function(){$("cfg").hidden=true};
 function num(id,min,max,def){var v=parseFloat(String($(id).value).replace(",","."));return isFinite(v)?Math.min(max,Math.max(min,v)):def;}
-["iNome","iLarg","iTaxa","iPrec","iVel"].forEach(function(id){$(id).addEventListener("change",function(){
+["iNome","iLarg","iTaxa","iUn","iPrec","iVel"].forEach(function(id){$(id).addEventListener("change",function(){
   var Wantes=S.W;
-  S.nome=$("iNome").value.trim()||"Talhão";S.W=num("iLarg",1,60,24);S.taxa=num("iTaxa",0,5000,100);
+  S.nome=$("iNome").value.trim()||"Talhão";S.W=num("iLarg",1,100,24);S.taxa=num("iTaxa",0,5000,100);S.un=$("iUn").value==="kg"?"kg":"L";
   S.maxAcc=num("iPrec",2,50,10);S.simVel=num("iVel",1,20,5);
   if(S.W!==Wantes&&pts.length)reconstroi();
   atualiza();salva();sujo=true;});});
@@ -395,7 +411,7 @@ $("bNovo").onclick=function(){
     setTimeout(function(){$("bNovo").textContent="Novo talhão"},3000);return;}
   confirmaNovo=0;$("bNovo").textContent="Novo talhão";paraTudo();zera();salva();$("cfg").hidden=true;view.esc=1.2;};
 
-/* refaz a cobertura a partir da trilha (troca de largura ou recarga) */
+/* refaz a cobertura a partir da trilha (troca da faixa ou recarga) */
 function reconstroi(){var trilha=pts.slice();tiles=new Map();cobertas=sobrepostas=0;distApl=tempoApl=0;
   for(var i=1;i<trilha.length;i++){var a=trilha[i-1],b=trilha[i];
     if(a.on&&b.on){var L=carimba(a,b);distApl+=L;var dt=(b.t-a.t)/1000;if(dt>0&&dt<15)tempoApl+=dt;}}
@@ -411,7 +427,7 @@ function carrega(){try{var j=JSON.parse(localStorage.getItem(CHAVE)||"null");if(
   Object.assign(S,j.S||{});origem=j.origem;
   pts=j.p.map(function(a){var p=proj(a[0],a[1]);p.lat=a[0];p.lon=a[1];p.t=a[2];p.on=!!a[3];return p;});
   reconstroi();return true;}catch(e){return false;}}
-function preencheCampos(){$("iNome").value=S.nome;$("iLarg").value=S.W;$("iTaxa").value=S.taxa;$("iPrec").value=S.maxAcc;$("iVel").value=S.simVel;}
+function preencheCampos(){$("iNome").value=S.nome;$("iLarg").value=S.W;$("iTaxa").value=S.taxa;$("iUn").value=S.un||"L";$("iPrec").value=S.maxAcc;$("iVel").value=S.simVel;}
 
 /* ---------- exportar ---------- */
 async function baixa(nome,texto,mime){
@@ -423,8 +439,8 @@ async function baixa(nome,texto,mime){
 function base(){return(S.nome||"talhao").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"_")+"_"+new Date().toISOString().slice(0,10);}
 $("bCsv").onclick=function(){
   if(!pts.length){aviso("Ainda não há trilha para exportar.");return;}
-  var l=["data_hora;latitude;longitude;barra"];
-  pts.forEach(function(p){l.push(new Date(p.t).toISOString()+";"+p.lat.toFixed(7)+";"+p.lon.toFixed(7)+";"+(p.on?"ligada":"desligada"));});
+  var l=["data_hora;latitude;longitude;aplicacao"];
+  pts.forEach(function(p){l.push(new Date(p.t).toISOString()+";"+p.lat.toFixed(7)+";"+p.lon.toFixed(7)+";"+(p.on?"aplicando":"parada"));});
   baixa(base()+".csv",l.join("\n"),"text/csv");};
 $("bGeo").onclick=function(){
   if(!pts.length){aviso("Ainda não há trilha para exportar.");return;}
@@ -435,31 +451,30 @@ $("bGeo").onclick=function(){
   if(run&&run.length>1)feats.push(run);
   var ha=cobertas/1e4,sob=sobrepostas/1e4;
   var gj={type:"FeatureCollection",features:feats.map(function(c,k){return{type:"Feature",
-    properties:{talhao:S.nome,passada:k+1,largura_barra_m:S.W},geometry:{type:"LineString",coordinates:c}};}),
-    properties:{talhao:S.nome,area_aplicada_ha:+ha.toFixed(3),sobreposicao_ha:+sob.toFixed(3),taxa_L_ha:S.taxa,largura_barra_m:S.W}};
+    properties:{talhao:S.nome,passada:k+1,faixa_m:S.W},geometry:{type:"LineString",coordinates:c}};}),
+    properties:{talhao:S.nome,area_aplicada_ha:+ha.toFixed(3),sobreposicao_ha:+sob.toFixed(3),taxa:S.taxa,unidade_taxa:S.un+"/ha",faixa_m:S.W}};
   baixa(base()+".json",JSON.stringify(gj),"application/json");};
 
-/* ---------- baixar mapa offline (o app Android guarda as imagens) ---------- */
-var baixando=false;
-$("bMapa").hidden=!window.AndroidApp;
+/* ---------- baixar mapa offline (o app Android baixa e guarda as imagens) ---------- */
+var baixando=false,RAIO=2000;
+$("bMapa").hidden=!(window.AndroidApp&&AndroidApp.baixarMapa);
+window.__progressoMapa=function(f,t,falhas){var b=$("bMapa");
+  if(f<t){b.textContent="Baixando mapa: "+Math.round(f/t*100)+"%";return;}
+  baixando=false;b.textContent="Baixar mapa da área (offline)";
+  aviso(falhas>t/3?"Faltou sinal: "+(t-falhas)+" de "+t+" imagens foram guardadas. Tente de novo com internet.":
+    "Mapa da área guardado no aparelho ("+t+" imagens, raio de 2 km). Pode usar no campo sem sinal.");};
 $("bMapa").onclick=function(){
   if(baixando)return;
-  var c=pts.length?pts[pts.length-1]:{lat:null};
-  var ctr=c.lat!=null?{lat:c.lat,lon:c.lon}:(origem?desproj(view.cx,view.cy):null);
+  var c=(pts.length&&!demo)?pts[pts.length-1]:null;
+  var ctr=c?{lat:c.lat,lon:c.lon}:(origem&&!demo?desproj(view.cx,view.cy):null);
   if(!ctr){aviso("Ligue o GPS primeiro para o app saber onde baixar o mapa.");return;}
-  var lista=[],R=1500;
-  for(var z=13;z<=18;z++){
-    var dLat=R/110540,dLon=R/(111320*Math.cos(ctr.lat*Math.PI/180));
+  var lista=[];
+  for(var z=12;z<=ZMAX;z++){
+    var dLat=RAIO/110540,dLon=RAIO/(111320*Math.cos(ctr.lat*Math.PI/180));
     var x0=Math.floor(lon2t(ctr.lon-dLon,z)),x1=Math.floor(lon2t(ctr.lon+dLon,z)),y0=Math.floor(lat2t(ctr.lat+dLat,z)),y1=Math.floor(lat2t(ctr.lat-dLat,z));
     for(var y=y0;y<=y1;y++)for(var x=x0;x<=x1;x++)lista.push(z+"/"+y+"/"+x);}
-  baixando=true;var feitos=0,falhas=0,i=0,ativos=0,b=$("bMapa");
-  function prox(){while(ativos<6&&i<lista.length){ativos++;var im=new Image();
-      im.onload=function(){fim(false)};im.onerror=function(){fim(true)};im.src=TURL+lista[i++];}
-    b.textContent="Baixando "+feitos+" de "+lista.length;
-    if(feitos>=lista.length){baixando=false;b.textContent="Baixar mapa da área (offline)";
-      aviso(falhas>lista.length/3?"Faltou sinal: só "+(lista.length-falhas)+" de "+lista.length+" imagens foram baixadas. Tente de novo com internet.":"Mapa da área guardado no aparelho ("+lista.length+" imagens, raio de 1,5 km).");}}
-  function fim(e){ativos--;feitos++;if(e)falhas++;prox();}
-  prox();};
+  baixando=true;$("bMapa").textContent="Baixando mapa: 0%";
+  try{AndroidApp.baixarMapa(JSON.stringify(lista));}catch(e){baixando=false;aviso("Não foi possível baixar o mapa.");}};
 
 /* ---------- tema ---------- */
 try{window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",function(){lerCores();repintar();});}catch(e){}

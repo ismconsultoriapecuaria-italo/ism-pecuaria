@@ -36,11 +36,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.json.JSONArray;
 
 public class MainActivity extends Activity {
 
     private static final String PAGINA = "https://appassets.androidplatform.net/assets/index.html";
-    private static final String HOST_SAT = "server.arcgisonline.com";
+    private static final String URL_SAT = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/";
     private static final int REQ_LOC = 1;
     private static final int REQ_ARMAZ = 2;
 
@@ -50,6 +55,7 @@ public class MainActivity extends Activity {
     private GeolocationPermissions.Callback geoCb;
     private String geoOrigem;
     private long ultimoVoltar = 0;
+    private final ExecutorService baixador = Executors.newFixedThreadPool(8);
 
     @Override
     protected void onCreate(Bundle estado) {
@@ -82,7 +88,8 @@ public class MainActivity extends Activity {
                 Uri u = r.getUrl();
                 WebResourceResponse local = loader.shouldInterceptRequest(u);
                 if (local != null) return local;
-                if (HOST_SAT.equals(u.getHost())) return tile(u);
+                String h = u.getHost();
+                if (h != null && h.endsWith("arcgisonline.com")) return tileGuardada(u);
                 return null;
             }
 
@@ -140,49 +147,68 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Imagens de satélite: serve do disco se já baixadas; senão baixa, guarda e serve. */
-    private WebResourceResponse tile(Uri u) {
-        Map<String, String> cab = new HashMap<>();
-        cab.put("Access-Control-Allow-Origin", "*");
-        cab.put("Cache-Control", "max-age=31536000");
-        List<String> seg = u.getPathSegments();
+    /**
+     * Imagens de satélite: se a imagem já foi guardada (mapa offline), serve do disco.
+     * Senão devolve null e o próprio WebView baixa, em paralelo e com o cache dele.
+     */
+    private WebResourceResponse tileGuardada(Uri u) {
+        File f = arquivoTile(u.getPathSegments());
+        if (f == null || !f.exists() || f.length() == 0) return null;
+        try {
+            Map<String, String> cab = new HashMap<>();
+            cab.put("Access-Control-Allow-Origin", "*");
+            cab.put("Cache-Control", "max-age=31536000");
+            return new WebResourceResponse("image/jpeg", null, 200, "OK", cab, new FileInputStream(f));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private File arquivoTile(List<String> seg) {
         int n = seg.size();
         if (n < 3) return null;
         String z = seg.get(n - 3), y = seg.get(n - 2), x = seg.get(n - 1);
         if (!z.matches("\\d+") || !y.matches("\\d+") || !x.matches("\\d+")) return null;
-        File f = new File(pastaTiles, z + "_" + y + "_" + x + ".img");
+        return new File(pastaTiles, z + "_" + y + "_" + x + ".img");
+    }
+
+    /** Baixa uma imagem para o disco. Devolve true se ficou guardada. */
+    private boolean guardaTile(String zyx) {
+        String[] p = zyx.split("/");
+        if (p.length != 3) return false;
+        File f = new File(pastaTiles, p[0] + "_" + p[1] + "_" + p[2] + ".img");
+        if (f.exists() && f.length() > 0) return true;
+        HttpURLConnection c = null;
         try {
-            if (!f.exists() || f.length() == 0) {
-                HttpURLConnection c = (HttpURLConnection) new URL(u.toString()).openConnection();
-                c.setConnectTimeout(10000);
-                c.setReadTimeout(20000);
-                c.setRequestProperty("User-Agent", "FaixasISM/1.0 (Android)");
-                int cod = c.getResponseCode();
-                if (cod != 200) {
-                    c.disconnect();
-                    return vazio(cab, 404);
-                }
-                InputStream in = c.getInputStream();
-                ByteArrayOutputStream buf = new ByteArrayOutputStream();
-                byte[] b = new byte[16384];
-                int lidos;
-                while ((lidos = in.read(b)) > 0) buf.write(b, 0, lidos);
-                in.close();
-                c.disconnect();
-                File tmp = new File(pastaTiles, f.getName() + ".tmp" + Thread.currentThread().getId());
-                FileOutputStream out = new FileOutputStream(tmp);
-                out.write(buf.toByteArray());
-                out.close();
-                if (!tmp.renameTo(f)) tmp.delete();
-                if (!f.exists()) {
-                    return new WebResourceResponse("image/jpeg", null, 200, "OK", cab,
-                            new ByteArrayInputStream(buf.toByteArray()));
-                }
-            }
-            return new WebResourceResponse("image/jpeg", null, 200, "OK", cab, new FileInputStream(f));
+            c = (HttpURLConnection) new URL(URL_SAT + zyx).openConnection();
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(20000);
+            c.setRequestProperty("User-Agent", "FaixasISM/1.1 (Android)");
+            if (c.getResponseCode() != 200) return false;
+            InputStream in = c.getInputStream();
+            ByteArrayOutputStream buf = new ByteArrayOutputStream();
+            byte[] b = new byte[16384];
+            int lidos;
+            while ((lidos = in.read(b)) > 0) buf.write(b, 0, lidos);
+            in.close();
+            File tmp = new File(pastaTiles, f.getName() + ".tmp" + Thread.currentThread().getId());
+            FileOutputStream out = new FileOutputStream(tmp);
+            out.write(buf.toByteArray());
+            out.close();
+            if (!tmp.renameTo(f)) tmp.delete();
+            return f.exists();
         } catch (Exception e) {
-            return vazio(cab, 503);
+            return false;
+        } finally {
+            if (c != null) c.disconnect();
         }
+    }
+
+    private void progresso(int feitos, int total, int falhas) {
+        runOnUiThread(() -> {
+            if (web != null) web.evaluateJavascript(
+                    "window.__progressoMapa&&window.__progressoMapa(" + feitos + "," + total + "," + falhas + ")", null);
+        });
     }
 
     private WebResourceResponse vazio(Map<String, String> cab, int cod) {
@@ -190,8 +216,28 @@ public class MainActivity extends Activity {
                 new ByteArrayInputStream(new byte[0]));
     }
 
-    /** Ponte chamada pela página para salvar CSV/GeoJSON na pasta Downloads. */
+    /** Ponte chamada pela página para salvar CSV/GeoJSON e baixar o mapa offline. */
     private class Ponte {
+        @JavascriptInterface
+        public void baixarMapa(String json) {
+            try {
+                JSONArray lista = new JSONArray(json);
+                final int total = lista.length();
+                final AtomicInteger feitos = new AtomicInteger(), falhas = new AtomicInteger();
+                if (total == 0) { progresso(0, 0, 0); return; }
+                for (int i = 0; i < total; i++) {
+                    final String zyx = lista.getString(i);
+                    baixador.execute(() -> {
+                        if (!guardaTile(zyx)) falhas.incrementAndGet();
+                        int f = feitos.incrementAndGet();
+                        if (f % 10 == 0 || f == total) progresso(f, total, falhas.get());
+                    });
+                }
+            } catch (Exception e) {
+                progresso(1, 1, 1);
+            }
+        }
+
         @JavascriptInterface
         public String salvar(String nome, String texto) {
             try {
