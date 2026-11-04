@@ -247,6 +247,25 @@ caso('administrativo não corrige valor lançado pelo proprietário', 'wilmingto
 caso('valor errado é recusado', 'josiane', ent + f"select public.salvar_valor_romaneio({RE}, 0, 0, 0)", 'erro')
 caso('ninguém grava direto na tabela de valores', 'wilmington', f"insert into public.romaneio_valores (romaneio_id,cliente_id,tipo,total) values ('40000000-0000-0000-0000-000000000001',{B},'Entrada',1)", 'erro')
 
+
+print('--- Maquinário (migração 012)')
+mes_ant = "(date_trunc('month', current_date) - interval '1 day')::date"
+ins_h = lambda d: f"insert into public.maquinas_horas (cliente_id,chave,maquina,data,hora_ini,hora_fim) values ({B},'h1','jd6125',{d},1000,1008) returning 1"
+caso('vê as 3 máquinas da Barramas', 'wemerson', conta('maquinas'), 3, aal='aal1')
+caso('tratorista lança horas no mês atual', 'wemerson', ins_h('current_date'), 1, aal='aal1')
+caso('tratorista não lança horas em mês fechado', 'wemerson', ins_h(mes_ant), 'erro', aal='aal1')
+caso('tratorista não corrige horas de mês fechado', 'wilmington', ins_h(mes_ant) + ";" + troca('wemerson', 'aal1') + "with u as (update public.maquinas_horas set hora_fim=1009 where chave='h1' returning 1) select count(*) from u", 0)
+caso('proprietário corrige mês fechado', 'wilmington', ins_h(mes_ant) + "; update public.maquinas_horas set hora_fim=1009 returning 1", 1)
+caso('tratorista lança manutenção', 'wemerson', f"insert into public.maquinas_manutencao (cliente_id,chave,maquina,data,horimetro,descricao,intervalo,proxima) values ({B},'m1','jd6125',current_date,1000,'Troca de óleo',250,1250) returning 1", 1, aal='aal1')
+caso('tratorista guarda a foto do painel', 'wemerson', f"insert into public.maquinas_fotos (id,cliente_id,dados) values (gen_random_uuid(),{B},'data:image/jpeg;base64,xx') returning 1", 1, aal='aal1')
+caso('tratorista não cadastra máquina', 'wemerson', f"insert into public.maquinas (cliente_id,chave,nome) values ({B},'x','X')", 'erro', aal='aal1')
+caso('proprietário cadastra máquina', 'wilmington', f"insert into public.maquinas (cliente_id,chave,nome) values ({B},'x','X') returning 1", 1)
+caso('horímetro final menor que o inicial é recusado', 'wilmington', f"insert into public.maquinas_horas (cliente_id,chave,maquina,data,hora_ini,hora_fim) values ({B},'h2','jd6125',current_date,1000,990)", 'erro')
+caso('vaqueiro não vê o maquinário', 'genisval', conta('maquinas'), 0, aal='aal1')
+caso('vaqueiro não lança horas', 'genisval', ins_h('current_date'), 'erro', aal='aal1')
+caso('administrativo não vê o maquinário', 'josiane', conta('maquinas_horas') + " union all select count(*) from public.maquinas", 0)
+caso('o outro Wemerson (serviços gerais) não vê', 'francisco', conta('maquinas'), 0, aal='aal1')
+
 print('--- Funções de administração fechadas (migração 010)')
 caso('vaqueiro não consegue se dar o perfil ISM', 'genisval', "select public.vincular_usuario('genisval@barramas.ism','Fazenda Barramas','Genisval','x','{ISM}')", 'erro', aal='aal1')
 caso('proprietário não bloqueia ninguém por função de administração', 'wilmington', "select public.bloquear_usuario('Fazenda Barramas','Josiane')", 'erro')

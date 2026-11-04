@@ -275,6 +275,7 @@
     if (pode('cocho')) tabelas.push('supl_fabrica', 'supl_cocho');
     tabelas.push('atividades');
     if (pode('fin_ver')) tabelas.push('financeiro');
+    if (pode('maquinas')) tabelas.push('maquinas', 'maquinas_horas', 'maquinas_manutencao');   // fotos: só sob demanda
 
     const r = await window.Sinc.iniciar({
       cliente: cli.id, usuario: c.uid, podeTotais: pode('rs'), obterToken: tokenDe, tabelas,
@@ -347,7 +348,12 @@
     s.onload = () => {
       const e = document.createElement('script');
       e.src = 'js/edicao.js?v=' + (window.ISM_VERSAO || '1');
-      e.onload = () => { window.ISM.iniciado = true; if (ultimoEstado) desenharEstado(ultimoEstado); };
+      e.onload = () => {
+        const m = document.createElement('script');
+        m.src = 'js/maquinas.js?v=' + (window.ISM_VERSAO || '1');
+        m.onload = m.onerror = () => { window.ISM.iniciado = true; if (ultimoEstado) desenharEstado(ultimoEstado); };
+        document.body.appendChild(m);
+      };
       document.body.appendChild(e);
     };
     document.body.appendChild(s);

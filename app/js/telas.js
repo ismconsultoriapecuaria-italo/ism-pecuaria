@@ -73,7 +73,7 @@ function finDraw(){
 
 /* ============ REBANHO: dados ============ */
 const LK='ism-'+ISM.cliente.id;let A=[],R=[],DB=null,READY=false,RO=false;
-const C={fabrica:[],cocho:[],pastos:[],atividades:[],financeiro:[],importacoes:[]};
+const C={fabrica:[],cocho:[],pastos:[],atividades:[],financeiro:[],importacoes:[],maquinas:[],mhoras:[],mmanut:[]};
 const clone=o=>JSON.parse(JSON.stringify(o));
 const PEND={},RUN={};
 async function flush(k){RUN[k]=1;while(PEND[k]){const p=PEND[k];delete PEND[k];try{const r=DB.doc(k);p.del?await r.delete():await r.set(p.v)}catch(e){dberr(e)}}RUN[k]=0}
@@ -129,14 +129,14 @@ function tagArt(n){const id='tg'+(++TGN),s=String(n??'').trim(),L=s.length||1,fs
 const tagSet=(sel,n)=>{const e=$(sel);if(e)e.innerHTML=tagArt(n)};
 
 /* ============ NAVEGAÇÃO ============ */
-const VIEWS={fin:'financeiro',man:'manejo',reb:'rebanho',sup:'suplementacao',atv:'atividades',map:'mapa',imp:'importar'};let VIEW='fin';
+const VIEWS={fin:'financeiro',man:'manejo',reb:'rebanho',sup:'suplementacao',atv:'atividades',map:'mapa',maq:'maquinario',imp:'importar'};let VIEW='fin';
 const MT=[['ent','Entrada'],['pes','Pesagem'],['ven','Venda'],['mor','Morte']];let MP='ent';
 const RT=[['ani','Animais'],['rom','Romaneios']];let RP='ani';
 function go(v){if(USER&&NAVP[v]&&!NAVP[v]())v=Object.keys(NAVP).find(x=>NAVP[x]());VIEW=v;for(const k in VIEWS)$('#v-'+k).hidden=k!==v;document.querySelectorAll('#nav button').forEach(b=>b.toggleAttribute('aria-current',false)||b.dataset.v===v&&b.setAttribute('aria-current','page'));
- if(v==='fin'){finDraw();cxDraw()}if(v==='man')manDraw();if(v==='reb')refresh();if(v==='sup')supDraw();if(v==='atv')atvDraw();if(v==='map')mapDraw();if(v==='imp'){impHist();if(IMP)impShow()}try{history.replaceState(null,'','#'+VIEWS[v])}catch(e){}}
+ if(v==='fin'){finDraw();cxDraw()}if(v==='man')manDraw();if(v==='reb')refresh();if(v==='sup')supDraw();if(v==='atv')atvDraw();if(v==='map')mapDraw();if(window.maqAvisos)maqAvisos();if(v==='maq'&&window.maqDraw)maqDraw();if(v==='imp'){impHist();if(IMP)impShow()}try{history.replaceState(null,'','#'+VIEWS[v])}catch(e){}}
 $('#nav').onclick=e=>{const b=e.target.closest('button');if(b){go(b.dataset.v);window.scrollTo(0,0)}};
 function manDraw(){seg('#mseg',MT,MP,k=>{MP=k;manDraw()});MT.forEach(([k])=>$('#m-'+k).hidden=k!==MP)}
-function redraw(){refresh();if(VIEW==='fin'){finDraw();cxDraw()}if(VIEW==='imp')impHist();if(VIEW==='sup')supDraw();if(VIEW==='atv')atvDraw();if(VIEW==='map')mapDraw()}
+function redraw(){refresh();if(VIEW==='fin'){finDraw();cxDraw()}if(VIEW==='imp')impHist();if(VIEW==='sup')supDraw();if(VIEW==='atv')atvDraw();if(VIEW==='map')mapDraw();if(window.maqAvisos)maqAvisos();if(VIEW==='maq'&&window.maqDraw)maqDraw()}
 function refresh(){
  const at=A.filter(a=>sit(a)=='Ativo'),vd=A.filter(a=>a.venda),mo=A.filter(a=>a.morte&&!a.venda),lw=a=>{const p=pts(a);return p[p.length-1].p};
  const gs=at.map(a=>{const p=pts(a);return p.length>1?(p[p.length-1].p-a.ent.p)/days(a.ent.d,p[p.length-1].d):null}).filter(x=>x!=null);
@@ -649,7 +649,7 @@ const PERM=ISM.perm;
 let USER=null;
 const can=k=>!!USER&&(USER.r.some(r=>(PERM[k]||[]).includes(r))||(USER.x||[]).includes(k));
 const VAL=()=>can('rs');
-const NAVP={fin:()=>can('fin_ver')&&ISM.mod('financeiro'),man:()=>can('manejo')&&ISM.mod('rebanho'),reb:()=>can('rebanho')&&ISM.mod('rebanho'),sup:()=>(can('cocho')||can('fabrica'))&&ISM.mod('suplemento'),atv:()=>ISM.mod('atividades'),map:()=>ISM.mod('mapa'),imp:()=>can('importar')};
+const NAVP={fin:()=>can('fin_ver')&&ISM.mod('financeiro'),man:()=>can('manejo')&&ISM.mod('rebanho'),reb:()=>can('rebanho')&&ISM.mod('rebanho'),sup:()=>(can('cocho')||can('fabrica'))&&ISM.mod('suplemento'),atv:()=>ISM.mod('atividades'),map:()=>ISM.mod('mapa'),maq:()=>can('maquinas')&&ISM.mod('maquinas'),imp:()=>can('importar')};
 function applyPerms(){
  document.querySelectorAll('#nav button').forEach(b=>b.hidden=!NAVP[b.dataset.v]());
  const n=[...document.querySelectorAll('#nav button')].filter(b=>!b.hidden).length;$('#nav').style.setProperty('--nav-n',n);

@@ -16,7 +16,8 @@
 
   // Tabelas que o app guarda e sincroniza
   const TABELAS = ['romaneios', 'animais', 'pesagens', 'vendas', 'vendas_valor', 'romaneio_valores', 'animais_valor', 'mortes', 'sanitario', 'pastos',
-    'supl_fabrica', 'supl_cocho', 'atividades', 'financeiro', 'importacoes', 'painel'];
+    'supl_fabrica', 'supl_cocho', 'atividades', 'financeiro', 'importacoes', 'painel',
+    'maquinas', 'maquinas_horas', 'maquinas_manutencao', 'maquinas_fotos'];
   const CHAVE_LINHA = { vendas_valor: 'venda_id', romaneio_valores: 'romaneio_id', animais_valor: 'animal_id', painel: 'chave' };
   // valores só para quem vê os totais (o banco também não entrega para os outros)
   const SO_TOTAIS = ['vendas_valor', 'romaneio_valores', 'animais_valor'];
@@ -50,6 +51,25 @@
       linha: d => ({ data: data(d.d), tipo: d.tipo, grupo: d.grupo, sub: txt(d.sub), item: d.item, valor: numero(d.valor), obs: txt(d.obs), origem: d.manual ? 'manual' : 'importacao' }),
       doc: r => ({ d: r.data, tipo: r.tipo, grupo: r.grupo, sub: r.sub || '', item: r.item, valor: +r.valor, obs: r.obs || '', manual: r.origem === 'manual' })
     },
+    // Maquinário (migração 012)
+    maquinas: {
+      tab: 'maquinas', campos: ['nome', 'modelo', 'ativo'],
+      linha: d => ({ nome: d.nome, modelo: txt(d.modelo), ativo: d.ativo !== false }),
+      doc: r => ({ nome: r.nome, modelo: r.modelo || '', ativo: r.ativo !== false })
+    },
+    mhoras: {
+      tab: 'maquinas_horas', campos: ['maq', 'd', 'ini', 'fim', 'fi', 'ff', 'li', 'lf', 'resp', 'obs'],
+      linha: d => ({ maquina: d.maq, data: data(d.d), hora_ini: numero(d.ini), hora_fim: numero(d.fim), foto_ini: txt(d.fi), foto_fim: txt(d.ff),
+        lido_ini: numero(d.li), lido_fim: numero(d.lf), responsavel: txt(d.resp), obs: txt(d.obs) }),
+      doc: r => semNulos({ maq: r.maquina, d: r.data, ini: +r.hora_ini, fim: r.hora_fim === null ? null : +r.hora_fim, fi: r.foto_ini, ff: r.foto_fim,
+        li: r.lido_ini === null ? null : +r.lido_ini, lf: r.lido_fim === null ? null : +r.lido_fim, resp: r.responsavel || '', obs: r.obs || '' })
+    },
+    mmanut: {
+      tab: 'maquinas_manutencao', campos: ['maq', 'd', 'hor', 'desc', 'int', 'prox', 'resp'],
+      linha: d => ({ maquina: d.maq, data: data(d.d), horimetro: numero(d.hor), descricao: d.desc, intervalo: numero(d.int), proxima: numero(d.prox), responsavel: txt(d.resp) }),
+      doc: r => semNulos({ maq: r.maquina, d: r.data, hor: +r.horimetro, desc: r.descricao, int: r.intervalo === null ? null : +r.intervalo,
+        prox: r.proxima === null ? null : +r.proxima, resp: r.responsavel || '' })
+    },
     importacoes: {
       tab: 'importacoes', campos: ['arquivo', 'cnt'],
       linha: d => ({ arquivo: d.arquivo || 'planilha', contagens: d.cnt || {} }),
@@ -79,7 +99,7 @@
   function montarIndices() {
     IX = { brinco: new Map(), chave: {}, filhos: {} };
     for (const r of linhasDe('animais')) IX.brinco.set(r.brinco, r);
-    for (const t of ['romaneios', 'pastos', 'supl_fabrica', 'supl_cocho', 'atividades', 'financeiro', 'importacoes']) {
+    for (const t of ['romaneios', 'pastos', 'supl_fabrica', 'supl_cocho', 'atividades', 'financeiro', 'importacoes', 'maquinas', 'maquinas_horas', 'maquinas_manutencao']) {
       IX.chave[t] = new Map(); for (const r of linhasDe(t)) IX.chave[t].set(r.chave, r);
     }
     for (const t of ['pesagens', 'sanitario', 'vendas', 'mortes']) {
@@ -103,7 +123,8 @@
   function marcar(tab) {
     tabSujas.add(tab);
     const c = { romaneios: ['romaneios'], supl_fabrica: ['fabrica'], supl_cocho: ['cocho'], pastos: ['pastos'], atividades: ['atividades'],
-      financeiro: ['financeiro'], importacoes: ['importacoes'], vendas_valor: ['animais', 'romaneios'], romaneio_valores: ['animais', 'romaneios'], animais_valor: ['animais', 'romaneios'], painel: ['painel'] }[tab] || ['animais'];
+      financeiro: ['financeiro'], importacoes: ['importacoes'], maquinas: ['maquinas'], maquinas_horas: ['mhoras'],
+      maquinas_manutencao: ['mmanut'], maquinas_fotos: [], vendas_valor: ['animais', 'romaneios'], romaneio_valores: ['animais', 'romaneios'], animais_valor: ['animais', 'romaneios'], painel: ['painel'] }[tab] || ['animais'];
     c.forEach(x => sujas.add(x));
     clearTimeout(timerSalvar); timerSalvar = setTimeout(salvarTabelas, 1200);
   }
@@ -255,7 +276,7 @@
 
   // Fila de documentos gravados pelas telas, processada em lote
   const pendDocs = new Map(); let timerProc = 0;
-  const ORDEM = ['romaneios', 'pastos', 'importacoes', 'animais', 'fabrica', 'cocho', 'atividades', 'financeiro'];
+  const ORDEM = ['romaneios', 'pastos', 'importacoes', 'animais', 'fabrica', 'cocho', 'atividades', 'financeiro', 'maquinas', 'mhoras', 'mmanut'];
   function gravarDoc(caminho, valor) {
     pendDocs.set(caminho, valor === null ? null : valor);
     clearTimeout(timerProc); timerProc = setTimeout(processar, 0);
@@ -410,6 +431,7 @@
           if (op.op === 'ins') await N().inserir(token, op.tab, lote.map(o => o.linha));
           else await N().alterar(token, op.tab, pk(op.tab) + '=eq.' + encodeURIComponent(op.id), op.campos);
           fila.splice(0, lote.length);
+          if (op.tab === 'maquinas_fotos') { lote.forEach(o => T.maquinas_fotos.delete(o.id)); marcar('maquinas_fotos'); }
           await salvarFila();
         } catch (e) {
           lote.forEach(o => o.voando = false);
@@ -515,12 +537,25 @@
     setInterval(() => { enviar(); receber(); }, (window.ISM_CONFIG.SEGUNDOS_SINCRONIA || 60) * 1000);
     return { temDados };
   }
+  // Fotos do painel das máquinas: guardadas no aparelho até subir; depois busca no banco só quando alguém abre
+  function salvarFoto(id, dados) {
+    inserirLocal('maquinas_fotos', { id, dados });
+    const op = fila[fila.length - 1]; if (op && op.id === id) op.sozinho = true;
+    salvarFila(); enviar();
+  }
+  async function foto(id) {
+    if (!id) return null;
+    const r = T.maquinas_fotos.get(id); if (r) return r.dados;
+    const token = await obterToken(EU); if (!token) return null;
+    const l = await N().ler(token, 'maquinas_fotos', 'select=dados&id=eq.' + encodeURIComponent(id));
+    return l[0] ? l[0].dados : null;
+  }
   async function sincronizarAgora() { await enviar(); await receber(); }
   async function primeiraCarga() { await receber(); }
   function aoPainel(cb) { (ouvintes.painel = ouvintes.painel || []).push(cb); cb(painel()); }
   async function apagarCliente(cli) { for (const kk of await CF().chaves('dados:' + cli + ':')) await CF().apagar(kk); }
 
-  window.Sinc = { iniciar, db, sincronizarAgora, primeiraCarga, estado, aoPainel, painel, enviar, receber, apagarCliente,
+  window.Sinc = { iniciar, db, sincronizarAgora, salvarFoto, foto, primeiraCarga, estado, aoPainel, painel, enviar, receber, apagarCliente,
     // para testes
     _T: T, _fila: () => fila, _processar: processar, _docsAnimais: docsAnimais };
 })();

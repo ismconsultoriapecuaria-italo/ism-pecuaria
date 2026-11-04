@@ -4,11 +4,11 @@
 (function () {
   'use strict';
   const PERFIS = ['Proprietário', 'Administrativo', 'Gerente', 'Vaqueiro', 'Fábrica de ração', 'Serviços gerais'];
-  const MODULOS = [['financeiro', 'Financeiro'], ['rebanho', 'Rebanho e manejo'], ['suplemento', 'Suplemento'], ['atividades', 'Atividades'], ['mapa', 'Mapa']];
+  const MODULOS = [['financeiro', 'Financeiro'], ['rebanho', 'Rebanho e manejo'], ['suplemento', 'Suplemento'], ['atividades', 'Atividades'], ['mapa', 'Mapa'], ['maquinas', 'Maquinário']];
   const ACOES = [['fin_ver', 'Ver o caixa'], ['fin_lancar', 'Lançar no caixa'], ['fin_editar', 'Editar o caixa'], ['ver_totais', 'Ver totais de venda'],
     ['rebanho_ver', 'Ver o rebanho'], ['manejo_lancar', 'Lançar manejo'], ['corrigir', 'Corrigir romaneios, fábrica e cocho'],
     ['suplemento', 'Lançar suplemento'], ['pastos_editar', 'Editar pastos'], ['atv_estrategico', 'Atividades estratégicas'],
-    ['atv_tatico', 'Atividades táticas'], ['atv_criar', 'Criar atividades'], ['importar', 'Importar planilhas'], ['exportar', 'Exportar relatórios']];
+    ['atv_tatico', 'Atividades táticas'], ['atv_criar', 'Criar atividades'], ['importar', 'Importar planilhas'], ['exportar', 'Exportar relatórios'], ['maquinas', 'Maquinário (lançar horas e manutenção)'], ['maquinas_gerir', 'Maquinário: conferir e corrigir mês fechado']];
 
   let X = null;            // contexto vindo da entrada: tela, aviso, ocupado, esc, $, rpc, dominio, abrirFazenda, recarregarFazendas, nome
   let LISTA = [];          // clientes com fazendas

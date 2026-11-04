@@ -176,6 +176,22 @@ input.big{font:600 30px/1 var(--f-m);min-height:62px;padding:10px 14px}
 .scale{background:var(--scale);color:var(--scale-ink);font:500 15px/1.6 var(--f-m);border-radius:8px;padding:12px 14px;white-space:pre-line;min-height:52px;border:2px solid transparent}
 .scale:empty::before{content:attr(data-ph);opacity:.55}
 .semval{color:var(--inv);font-weight:700}
+/* maquinário */
+.mqfoto{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.mqfoto img{width:120px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.mqal{border-radius:var(--r);padding:10px 12px;font-weight:600;margin-bottom:8px;border:1px solid var(--line)}
+.mqal.aviso{background:#fdf1dc;color:#7a4a00;border-color:#e6c58a}
+.mqal.erro{background:#fbe5e1;color:#8a2a1c;border-color:#e8b3a8}
+.mqgeral{display:block;width:100%;text-align:left;margin-bottom:12px;border:1px solid #e6c58a;background:#fdf1dc;color:#7a4a00;border-radius:var(--r);padding:10px 12px;font:600 14px/1.4 var(--f-d);cursor:pointer}
+.mqgeral b{font-weight:800}
+.mqpill{font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--soft);white-space:nowrap}
+.mqpill.ok{background:#e2f0e1;color:#2f6b3a}.mqpill.err{background:#fbe5e1;color:#8a2a1c}.mqpill.uso{background:#e7f1fb;color:#24639e}
+.mqprob{display:block;color:var(--neg);font-size:13px;margin-top:4px}
+.mqsits{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.mqsit{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-left:6px solid var(--pos);border-radius:8px;padding:10px 12px;font-size:14px}
+.mqsit.aviso{border-left-color:#d99a1c}.mqsit.err{border-left-color:var(--neg)}
+.mqfotobox{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.mqfotobox img{width:100%;max-height:50vh;object-fit:contain;border-radius:8px;background:#000}
 .scale.warn{background:var(--warn-bg);color:var(--warn-ink);border-color:var(--neg)}
 /* balança AT55 */
 .bal{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--soft)}
@@ -334,6 +350,7 @@ label.btn{color:var(--acc-ink)}
   <button type="button" data-v="sup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 10h18l-2 9H5z"/><path d="M7 10c0-3 2-5 5-5s5 2 5 5"/></svg>Suplemento</button>
   <button type="button" data-v="atv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/></svg>Atividades</button>
   <button type="button" data-v="map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Mapa</button>
+ <button type="button" data-v="maq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="7" cy="17" r="3.5"/><circle cx="18" cy="18" r="2.5"/><path d="M3.5 17V11h7l2-5h4v8M10.5 11v3.5M15.5 18H10.5M20.5 18H21V14H13"/></svg>Máquinas</button>
  </nav>
 </div></div>
 
@@ -570,6 +587,47 @@ label.btn{color:var(--acc-ink)}
 </section>
 
 <!-- MAPA -->
+<!-- MAQUINÁRIO -->
+<section class="view" id="v-maq" hidden>
+ <div id="mq-alertas"></div>
+ <div class="seg" id="mqseg"></div>
+ <div id="mq-horas" class="view">
+  <form id="fmq" class="card" novalidate>
+   <p class="eyebrow">Maquinário · horas trabalhadas</p><h2 class="ct" id="mq-tit">Iniciar uso</h2>
+   <p class="hint" id="mq-hint"></p>
+   <div class="fg">
+    <div class="f"><label for="mq-maq">Máquina</label><select id="mq-maq" name="maq"></select></div>
+    <div class="f" id="mq-data-f"><label for="mq-data">Data</label><input id="mq-data" type="date" name="d"></div>
+    <div class="f"><label for="mq-hor" id="mq-hor-l">Horímetro inicial (h)</label><input id="mq-hor" class="big" name="hor" inputmode="decimal" autocomplete="off"></div>
+   </div>
+   <div class="mqfoto"><label class="btn ghost" for="mq-foto">📷 Tirar foto do painel</label><input type="file" id="mq-foto" accept="image/*" capture="environment" hidden><img id="mq-prev" alt="Foto do painel" hidden></div>
+   <button class="btn wide" id="mq-go" type="submit">Iniciar uso</button>
+  </form>
+  <div class="card list" id="mq-lista"></div>
+ </div>
+ <div id="mq-manut" class="view" hidden>
+  <div class="card" id="mm-sit-c"><h3 class="sub">Situação das máquinas</h3><div id="mm-sit" class="mqsits"></div></div>
+  <form id="fmm" class="card" novalidate>
+   <p class="eyebrow">Maquinário</p><h2 class="ct">Lançar manutenção</h2>
+   <p class="hint">O app avisa os três quando faltar 50 horas ou menos para a próxima.</p>
+   <div class="fg">
+    <div class="f"><label for="mm-maq">Máquina</label><select id="mm-maq"></select></div>
+    <div class="f"><label for="mm-data">Data da manutenção</label><input id="mm-data" type="date"></div>
+    <div class="f"><label for="mm-hor">Horímetro na manutenção (h)</label><input id="mm-hor" inputmode="decimal" autocomplete="off"></div>
+    <div class="f"><label for="mm-int">Fazer de novo daqui a (h)</label><input id="mm-int" inputmode="decimal" autocomplete="off" placeholder="ex.: 250"></div>
+   </div>
+   <div class="f" style="margin-top:12px"><label for="mm-desc">O que foi feito</label><textarea id="mm-desc" rows="3" style="width:100%;min-height:84px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--card);font:inherit;color:inherit"></textarea></div>
+   <p class="hint" id="mm-prev"></p>
+   <button class="btn" type="submit">Salvar manutenção</button>
+  </form>
+  <div class="card list" id="mm-lista"></div>
+ </div>
+ <div id="mq-mes" class="view" hidden>
+  <div class="card"><div class="f" style="max-width:220px"><label for="mq-mes-sel">Mês</label><input id="mq-mes-sel" type="month"></div><div id="mq-tot" style="margin-top:12px"></div></div>
+  <div class="card list" id="mq-conf" hidden></div>
+ </div>
+</section>
+
 <section class="view" id="v-map" hidden>
  <div class="kpis" id="mk"></div>
  <div class="card mapc">
