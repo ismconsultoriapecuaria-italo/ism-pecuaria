@@ -17,7 +17,7 @@
   // Tabelas que o app guarda e sincroniza
   const TABELAS = ['romaneios', 'animais', 'pesagens', 'vendas', 'vendas_valor', 'romaneio_valores', 'animais_valor', 'mortes', 'sanitario', 'pastos',
     'supl_fabrica', 'supl_cocho', 'atividades', 'financeiro', 'importacoes', 'painel',
-    'maquinas', 'maquinas_horas', 'maquinas_manutencao', 'maquinas_fotos'];
+    'maquinas', 'maquinas_horas', 'maquinas_manutencao', 'maquinas_fotos', 'pastos_lotacao'];
   const CHAVE_LINHA = { vendas_valor: 'venda_id', romaneio_valores: 'romaneio_id', animais_valor: 'animal_id', painel: 'chave' };
   // valores só para quem vê os totais (o banco também não entrega para os outros)
   const SO_TOTAIS = ['vendas_valor', 'romaneio_valores', 'animais_valor'];
@@ -34,6 +34,12 @@
       tab: 'supl_cocho', campos: ['d', 'pasto', 'dieta', 'kg', 'estado', 'resp'],
       linha: d => ({ data: data(d.d), pasto: d.pasto, dieta: d.dieta, kg: numero(d.kg), estado: txt(d.estado), responsavel: txt(d.resp) }),
       doc: r => semNulos({ d: r.data, pasto: r.pasto, dieta: r.dieta, kg: +r.kg, estado: r.estado, resp: r.responsavel || '' })
+    },
+    // animais por pasto (migração 013): cabeças e @ média a partir de uma data
+    lotacao: {
+      tab: 'pastos_lotacao', campos: ['d', 'pasto', 'cab', 'arr', 'orig', 'resp'],
+      linha: d => ({ data: data(d.d), pasto: d.pasto, cabecas: Math.round(numero(d.cab)), arroba: numero(d.arr), origem: d.orig === 'manual' ? 'manual' : 'cocho', responsavel: txt(d.resp) }),
+      doc: r => semNulos({ d: r.data, pasto: r.pasto, cab: +r.cabecas, arr: r.arroba === null ? null : +r.arroba, orig: r.origem, resp: r.responsavel || '' })
     },
     pastos: {
       tab: 'pastos', campos: ['nome', 'area', 'obs', 'tipo', 'cod'],
@@ -99,7 +105,7 @@
   function montarIndices() {
     IX = { brinco: new Map(), chave: {}, filhos: {} };
     for (const r of linhasDe('animais')) IX.brinco.set(r.brinco, r);
-    for (const t of ['romaneios', 'pastos', 'supl_fabrica', 'supl_cocho', 'atividades', 'financeiro', 'importacoes', 'maquinas', 'maquinas_horas', 'maquinas_manutencao']) {
+    for (const t of ['romaneios', 'pastos', 'supl_fabrica', 'supl_cocho', 'atividades', 'financeiro', 'importacoes', 'maquinas', 'maquinas_horas', 'maquinas_manutencao', 'pastos_lotacao']) {
       IX.chave[t] = new Map(); for (const r of linhasDe(t)) IX.chave[t].set(r.chave, r);
     }
     for (const t of ['pesagens', 'sanitario', 'vendas', 'mortes']) {
@@ -124,7 +130,7 @@
     tabSujas.add(tab);
     const c = { romaneios: ['romaneios'], supl_fabrica: ['fabrica'], supl_cocho: ['cocho'], pastos: ['pastos'], atividades: ['atividades'],
       financeiro: ['financeiro'], importacoes: ['importacoes'], maquinas: ['maquinas'], maquinas_horas: ['mhoras'],
-      maquinas_manutencao: ['mmanut'], maquinas_fotos: [], vendas_valor: ['animais', 'romaneios'], romaneio_valores: ['animais', 'romaneios'], animais_valor: ['animais', 'romaneios'], painel: ['painel'] }[tab] || ['animais'];
+      maquinas_manutencao: ['mmanut'], maquinas_fotos: [], pastos_lotacao: ['lotacao'], vendas_valor: ['animais', 'romaneios'], romaneio_valores: ['animais', 'romaneios'], animais_valor: ['animais', 'romaneios'], painel: ['painel'] }[tab] || ['animais'];
     c.forEach(x => sujas.add(x));
     clearTimeout(timerSalvar); timerSalvar = setTimeout(salvarTabelas, 1200);
   }
@@ -276,7 +282,7 @@
 
   // Fila de documentos gravados pelas telas, processada em lote
   const pendDocs = new Map(); let timerProc = 0;
-  const ORDEM = ['romaneios', 'pastos', 'importacoes', 'animais', 'fabrica', 'cocho', 'atividades', 'financeiro', 'maquinas', 'mhoras', 'mmanut'];
+  const ORDEM = ['romaneios', 'pastos', 'importacoes', 'animais', 'fabrica', 'cocho', 'atividades', 'financeiro', 'maquinas', 'mhoras', 'mmanut', 'lotacao'];
   function gravarDoc(caminho, valor) {
     pendDocs.set(caminho, valor === null ? null : valor);
     clearTimeout(timerProc); timerProc = setTimeout(processar, 0);

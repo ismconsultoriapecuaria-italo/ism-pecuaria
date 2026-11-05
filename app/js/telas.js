@@ -73,7 +73,7 @@ function finDraw(){
 
 /* ============ REBANHO: dados ============ */
 const LK='ism-'+ISM.cliente.id;let A=[],R=[],DB=null,READY=false,RO=false;
-const C={fabrica:[],cocho:[],pastos:[],atividades:[],financeiro:[],importacoes:[],maquinas:[],mhoras:[],mmanut:[]};
+const C={fabrica:[],cocho:[],pastos:[],lotacao:[],atividades:[],financeiro:[],importacoes:[],maquinas:[],mhoras:[],mmanut:[]};
 const clone=o=>JSON.parse(JSON.stringify(o));
 const PEND={},RUN={};
 async function flush(k){RUN[k]=1;while(PEND[k]){const p=PEND[k];delete PEND[k];try{const r=DB.doc(k);p.del?await r.delete():await r.set(p.v)}catch(e){dberr(e)}}RUN[k]=0}
@@ -133,10 +133,10 @@ const VIEWS={fin:'financeiro',man:'manejo',reb:'rebanho',sup:'suplementacao',atv
 const MT=[['ent','Entrada'],['pes','Pesagem'],['ven','Venda'],['mor','Morte']];let MP='ent';
 const RT=[['ani','Animais'],['rom','Romaneios']];let RP='ani';
 function go(v){if(USER&&NAVP[v]&&!NAVP[v]())v=Object.keys(NAVP).find(x=>NAVP[x]());VIEW=v;for(const k in VIEWS)$('#v-'+k).hidden=k!==v;document.querySelectorAll('#nav button').forEach(b=>b.toggleAttribute('aria-current',false)||b.dataset.v===v&&b.setAttribute('aria-current','page'));
- if(v==='fin'){finDraw();cxDraw()}if(v==='man')manDraw();if(v==='reb')refresh();if(v==='sup')supDraw();if(v==='atv')atvDraw();if(v==='map')mapDraw();if(window.maqAvisos)maqAvisos();if(v==='maq'&&window.maqDraw)maqDraw();if(v==='imp'){impHist();if(IMP)impShow()}try{history.replaceState(null,'','#'+VIEWS[v])}catch(e){}}
+ if(v==='fin'){finDraw();cxDraw()}if(v==='man')manDraw();if(v==='reb')refresh();if(v==='sup')supDraw();if(v==='atv')atvDraw();if(v==='map')mapDraw();if(window.maqAvisos)maqAvisos();lotTopo();if(v==='maq'&&window.maqDraw)maqDraw();if(v==='imp'){impHist();if(IMP)impShow()}try{history.replaceState(null,'','#'+VIEWS[v])}catch(e){}}
 $('#nav').onclick=e=>{const b=e.target.closest('button');if(b){go(b.dataset.v);window.scrollTo(0,0)}};
 function manDraw(){seg('#mseg',MT,MP,k=>{MP=k;manDraw()});MT.forEach(([k])=>$('#m-'+k).hidden=k!==MP)}
-function redraw(){refresh();if(VIEW==='fin'){finDraw();cxDraw()}if(VIEW==='imp')impHist();if(VIEW==='sup')supDraw();if(VIEW==='atv')atvDraw();if(VIEW==='map')mapDraw();if(window.maqAvisos)maqAvisos();if(VIEW==='maq'&&window.maqDraw)maqDraw()}
+function redraw(){refresh();if(VIEW==='fin'){finDraw();cxDraw()}if(VIEW==='imp')impHist();if(VIEW==='sup')supDraw();if(VIEW==='atv')atvDraw();if(VIEW==='map')mapDraw();if(window.maqAvisos)maqAvisos();lotTopo();if(VIEW==='maq'&&window.maqDraw)maqDraw()}
 function refresh(){
  const at=A.filter(a=>sit(a)=='Ativo'),vd=A.filter(a=>a.venda),mo=A.filter(a=>a.morte&&!a.venda),lw=a=>{const p=pts(a);return p[p.length-1].p};
  const gs=at.map(a=>{const p=pts(a);return p.length>1?(p[p.length-1].p-a.ent.p)/days(a.ent.d,p[p.length-1].d):null}).filter(x=>x!=null);
@@ -386,7 +386,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const kgf=v=>nf(v,0)+' kg',sac=v=>nf(v/30,1);
 const ymNow=()=>today().slice(0,7);
 const mlab=m=>mn[+m.slice(5)-1]+'/'+m.slice(0,4);
-const ST=[['fab','Fábrica de ração'],['coc','Cocho']];let SP='coc';
+const ST=[['fab','Fábrica de ração'],['coc','Cocho'],['lot','Animais por pasto']];let SP='coc';
 function dietas(){return[...new Set([...DIETAS,...C.fabrica.map(x=>x.dieta),...C.cocho.map(x=>x.dieta)].filter(Boolean))]}
 function fillSel(sel,items,keep,extra){const s=$(sel),c=s.value;s.innerHTML=items.map(v=>'<option>'+esc(v)+'</option>').join('')+(extra||'');if(keep!==false&&[...s.options].some(o=>o.value===c))s.value=c}
 function arm(btn,fn){if(btn.classList.contains('arm')){fn();return}btn.classList.add('arm');const t=btn.textContent;btn.textContent='Confirmar';setTimeout(()=>{btn.classList.remove('arm');btn.textContent=t},3500)}
@@ -414,7 +414,7 @@ function supDraw(){
   $('#ck').innerHTML=!READY?kp('Cocho','…','carregando'):kp('No cocho',kgf(coc),mlab(m),'hi')+kp('Tratos',cm_.length.toLocaleString('pt-BR'),cm_.filter(x=>x.estado==='Sobrou').length+' com sobra no cocho')+kp('Pastos tratados',String(np),'no mês')+kp('Saída da fábrica',kgf(sai),sai||coc?(dif===0?'confere com o cocho':(dif>0?'sobra ':'falta ')+kgf(Math.abs(dif))+' no cocho'):'no mês');
   $('#coc-rt').textContent='Resumo por pasto · '+mlab(m);
   const PA=Object.fromEntries(pastos().map(p=>[p.nome,p]));
-  $('#cocr').innerHTML=np?'<table class="pt"><tr><th>Pasto</th><th>Total (kg)</th><th>Tratos</th><th>kg/ha</th><th>Último trato</th><th>Limpo / sobrou</th><th>Por suplemento</th></tr>'+Object.entries(by).sort((a,b)=>b[1].kg-a[1].kg).map(([p,o])=>{const ar=PA[p]&&PA[p].area;return'<tr><td>'+esc(p)+'</td><td class="av">'+nf(o.kg,0)+'</td><td>'+o.n+'</td><td>'+(ar?nf(o.kg/ar,1):'–')+'</td><td>'+fd(o.u)+(o.ue?' <span class="pill '+o.ue+'">'+o.ue+'</span>':'')+'</td><td>'+o.l+' / <span class="'+(o.s?'inv':'')+'">'+o.s+'</span></td><td>'+Object.entries(o.dt).map(([d,k])=>esc(d)+': '+nf(k,0)).join(' · ')+'</td></tr>'}).join('')+'<tr class="sm"><td>Total</td><td class="av">'+nf(coc,0)+'</td><td>'+cm_.length+'</td><td></td><td></td><td>'+cm_.filter(x=>x.estado==='Limpo').length+' / '+cm_.filter(x=>x.estado==='Sobrou').length+'</td><td></td></tr></table>':'<p class="mut">Nenhum trato lançado em '+mlab(m)+'.</p>';
+  $('#cocr').innerHTML=np?'<table class="pt"><tr><th>Pasto</th><th>Total (kg)</th><th>Tratos</th><th>kg/ha</th><th>Cabeças</th><th>g/cab/dia</th><th>Último trato</th><th>Limpo / sobrou</th><th>Por suplemento</th></tr>'+Object.entries(by).sort((a,b)=>b[1].kg-a[1].kg).map(([p,o])=>{const ar=PA[p]&&PA[p].area;return'<tr><td>'+esc(p)+'</td><td class="av">'+nf(o.kg,0)+'</td><td>'+o.n+'</td><td>'+(ar?nf(o.kg/ar,1):'–')+'</td><td>'+((la=>la?nf(la.cab,0):'–')(lotAtual(p)))+'</td><td>'+((g=>g!=null?nf(g,0):'–')(lotConsumo(p,m)))+'</td><td>'+fd(o.u)+(o.ue?' <span class="pill '+o.ue+'">'+o.ue+'</span>':'')+'</td><td>'+o.l+' / <span class="'+(o.s?'inv':'')+'">'+o.s+'</span></td><td>'+Object.entries(o.dt).map(([d,k])=>esc(d)+': '+nf(k,0)).join(' · ')+'</td></tr>'}).join('')+'<tr class="sm"><td>Total</td><td class="av">'+nf(coc,0)+'</td><td>'+cm_.length+'</td><td></td><td></td><td></td><td></td><td>'+cm_.filter(x=>x.estado==='Limpo').length+' / '+cm_.filter(x=>x.estado==='Sobrou').length+'</td><td></td></tr></table>':'<p class="mut">Nenhum trato lançado em '+mlab(m)+'.</p>';
   $('#cocl').innerHTML=cm_.length?cm_.slice().sort((a,b)=>b.d.localeCompare(a.d)||b.id.localeCompare(a.id)).map(x=>'<div class="rowl"><span class="d">'+fd(x.d).slice(0,5)+'</span><span><b>'+esc(x.pasto)+'</b>'+(x.estado?' <span class="pill '+x.estado+'">'+x.estado+'</span>':'')+'<span class="sub2">'+esc(x.dieta)+(x.resp?' · '+esc(x.resp):'')+'</span></span><span class="q">'+kgf(x.kg)+'</span>'+(can('corrigir')?'<span style="display:flex;gap:6px">'+(window.botaoEditar?botaoEditar:()=>'')('cocho',x.id)+'<button type="button" class="x" data-del="cocho/'+x.id+'">Excluir</button></span>':'<span></span>')+'</div>').join(''):'<p class="mut">Nenhum lançamento em '+mlab(m)+'.</p>';
   cocHint();
  }
@@ -439,7 +439,9 @@ $('#fpre').onsubmit=async e=>{e.preventDefault();if(!can('importar'))return;cons
 document.querySelectorAll('[data-dieta]').forEach(s=>s.addEventListener('change',()=>{const o=s.closest('form').querySelector('[name=outra]').closest('.f');o.hidden=s.value!=='__o';if(!o.hidden)o.querySelector('input').focus();s.id==='fab-dieta'?fabHint():cocHint()}));
 const dietaOf=f=>f.get('dieta')==='__o'?String(f.get('outra')||'').trim():f.get('dieta');
 function fabHint(){const d=$('#fab-dieta').value,S=stock()[d];$('#fab-h').textContent=d&&d!=='__o'?'Estoque de '+d+': '+(S?kgf(S.p-S.s)+' ('+sac(S.p-S.s)+' sacos)':'0 kg'):''}
-function cocHint(){const p=$('#coc-pasto').value;if(!p||p==='__n'){$('#coc-h').textContent='';return}const l=C.cocho.filter(x=>x.pasto===p).sort((a,b)=>b.d.localeCompare(a.d))[0];$('#coc-h').textContent=l?'Último trato em '+p+': '+fd(l.d)+' · '+kgf(l.kg)+' de '+l.dieta+(l.estado?' · cocho '+l.estado.toLowerCase():''):'Nenhum trato lançado ainda em '+p+'.'}
+function cocHint(){const p=$('#coc-pasto').value;if(!p||p==='__n'){$('#coc-h').textContent='';return}
+ const la=lotAtual(p),ci=$('#coc-cab');if(ci.dataset.p!==p){ci.dataset.p=p;ci.value=la?la.cab:'';$('#coc-arr').value=la&&la.arr?String(la.arr).replace('.',','):''}
+ $('#coc-lh').textContent=la?'No '+p+': '+nf(la.cab,0)+' cabeças'+(la.arr?' · '+nArr(la.arr)+' @':'')+' desde '+fd(la.d)+(la.resp?' ('+la.resp+')':''):'Ainda sem número de animais no '+p+'.';const l=C.cocho.filter(x=>x.pasto===p).sort((a,b)=>b.d.localeCompare(a.d))[0];$('#coc-h').textContent=l?'Último trato em '+p+': '+fd(l.d)+' · '+kgf(l.kg)+' de '+l.dieta+(l.estado?' · cocho '+l.estado.toLowerCase():''):'Nenhum trato lançado ainda em '+p+'.'}
 $('#coc-pasto').onchange=()=>{const n=$('#coc-pasto').value==='__n';$('#coc-new').hidden=!n;if(n)$('#np-nome').focus();cocHint()};
 $('#ffab').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target),kg=num(f.get('kg')),d=dietaOf(f);
  const resp=f.get('resp');if(!d)return msg('Informe o suplemento.');if(isNaN(kg)||kg<=0)return msg('Informe a quantidade em kg.');if(!resp)return msg('Escolha o responsável.');try{localStorage.setItem(LK+'-fab-resp',resp)}catch(er){}
@@ -451,13 +453,73 @@ $('#ffab').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormDat
 $('#fcoc').onsubmit=e=>{e.preventDefault();if(!canW())return;const f=new FormData(e.target),kg=num(f.get('kg')),d=dietaOf(f),p=f.get('pasto');
  const est=f.get('estado');if(!p||p==='__n')return msg('Escolha o pasto ou cadastre um novo.');if(!est)return msg('Marque se o cocho estava limpo ou com sobra.');if(!d)return msg('Informe o suplemento.');if(isNaN(kg)||kg<=0)return msg('Informe os quilos colocados no cocho.');
  const resp=f.get('resp');if(!resp)return msg('Escolha o responsável.');try{localStorage.setItem(LK+'-coc-resp',resp)}catch(er){}
- if(!certeza('Lançar '+kgf(kg)+' de '+d+' no cocho do '+p+' em '+fd(f.get('data'))+'?'))return;
- putC('cocho',{id:uid(),d:f.get('data'),pasto:p,dieta:d,kg,resp,estado:est});msg(kgf(kg)+' de '+d+' no '+p+' (cocho '+est.toLowerCase()+').');
+ const cab=num(f.get('cab')),arr=num(f.get('arr'));if(isNaN(cab)||cab<1||cab%1)return msg('Informe quantos animais estão no pasto.');if(!(arr>0&&arr<100))return msg('Informe o peso médio aproximado por animal, em @.');
+ const la=lotAtual(p,f.get('data')),mud=la&&+la.cab!==cab,foraArr=arr<6||arr>25;
+ if(!certeza('Lançar '+kgf(kg)+' de '+d+' no cocho do '+p+' em '+fd(f.get('data'))+'?\n'+cab+' animais · '+nArr(arr)+' @ por animal'+(mud?'\nO número do pasto muda de '+la.cab+' para '+cab+'.':'')+(foraArr?'\nConfira a @: '+nArr(arr)+' @ é '+nf(arr*30,0)+' kg por animal.':'')))return;
+ const cid=uid();putC('cocho',{id:cid,d:f.get('data'),pasto:p,dieta:d,kg,resp,estado:est,cab,arr});
+ putC('lotacao',{id:uid(),d:f.get('data'),pasto:p,cab,arr,orig:'cocho',resp,t:Date.now(),ant:la?la.cab:null,coc:cid});$('#coc-cab').dataset.p='';msg(kgf(kg)+' de '+d+' no '+p+' (cocho '+est.toLowerCase()+').');
  $('#coc-kg').value='';$('#coc-cl').checked=$('#coc-cs').checked=false;$('#smes').value=f.get('data').slice(0,7);supDraw();$('#coc-pasto').focus()};
 $('#np-add').onclick=()=>{if(!canW())return;const n=$('#np-nome').value.trim();if(!n)return msg('Digite o nome do pasto.');if(!certeza('Cadastrar o pasto '+n+'?'))return;const a=num($('#np-area').value);
  savePasto(n,isNaN(a)?null:a,'');$('#np-nome').value='';$('#np-area').value='';$('#coc-new').hidden=true;supDraw();$('#coc-pasto').value=n;cocHint();$('#coc-kg').focus()};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;if(!canW())return;if(!certeza('Excluir este lançamento? Ele sai do app e fica só no histórico.'))return;(fn=>fn())(()=>{const[c,id]=b.dataset.del.split('/');delC(c,id);msg('Lançamento excluído.');redraw()})});
 
+/* ============ ANIMAIS POR PASTO (migração 013) ============
+   Cada registro: pasto, data, cabeças e @ média aproximada. O número atual é o último registro.
+   O vaqueiro informa junto com o trato (vale na hora); ISM e proprietário ('lotacao') contam pasto a pasto
+   e veem um aviso quando o número mudou pelo cocho. UA = 450 kg de peso vivo; @ = 30 kg. */
+const UA_KG=450;
+const lotOrd=(a,b)=>a.d.localeCompare(b.d)||((a.t||0)-(b.t||0));
+const lotHist=p=>C.lotacao.filter(x=>x.pasto===p).sort(lotOrd);
+function lotAtual(p,ate){const h=lotHist(p).filter(x=>!ate||x.d<=ate);return h[h.length-1]||null}
+const nArr=v=>v==null?'–':nf(+v,1);
+const dDif=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
+// consumo no mês (g por cabeça por dia): o que foi posto num dia de trato dura até o próximo trato do pasto
+function lotConsumo(p,m){const dias={};
+ C.cocho.filter(x=>x.pasto===p).forEach(x=>{const o=dias[x.d]=dias[x.d]||{kg:0,cab:0};o.kg+=x.kg;const c=x.cab!=null?+x.cab:((lotAtual(p,x.d)||{}).cab||0);if(c>o.cab)o.cab=c});
+ const ds=Object.keys(dias).sort();let kg=0,cd=0;
+ for(let i=0;i<ds.length-1;i++){const d=ds[i];if(d.slice(0,7)!==m)continue;const g=dDif(d,ds[i+1]);if(g<=0||g>15||!dias[d].cab)continue;kg+=dias[d].kg;cd+=dias[d].cab*g}
+ return cd?kg*1000/cd:null}
+// mudanças de número feitas no cocho que a ISM/proprietário ainda não viram (e que nenhuma contagem depois cobriu)
+function lotAvisos(){if(!can('lotacao'))return[];
+ return C.lotacao.filter(x=>x.orig==='cocho'&&x.ant!=null&&+x.ant!==+x.cab&&!x.visto).filter(x=>!lotHist(x.pasto).some(y=>y.orig==='manual'&&lotOrd(x,y)<0)).sort((a,b)=>lotOrd(b,a))}
+const lotPastos=()=>{const n=pastos().map(p=>p.nome);C.lotacao.forEach(x=>{if(!n.includes(x.pasto))n.push(x.pasto)});return n};
+let LOT_SUJO=false;
+function lotDraw(){if(SP!=='lot'||!$('#s-lot'))return;const m=$('#smes').value||ymNow(),PA=Object.fromEntries(pastos().map(p=>[p.nome,p]));
+ const L=lotPastos().map(p=>({p,a:lotAtual(p),ar:PA[p]&&PA[p].area,c:lotConsumo(p,m)}));
+ const oc=L.filter(o=>o.a&&o.a.cab>0),cab=sm(oc.map(o=>o.a.cab)),arrT=sm(oc.map(o=>o.a.cab*(o.a.arr||0))),comArr=sm(oc.filter(o=>o.a.arr).map(o=>o.a.cab));
+ const uaT=arrT*30/UA_KG,areaT=sm(oc.filter(o=>o.ar).map(o=>o.ar)),uaA=sm(oc.filter(o=>o.ar).map(o=>o.a.cab*(o.a.arr||0)*30/UA_KG));
+ let reb='';if(can('rebanho')&&READY){const at=A.filter(a=>sit(a)=='Ativo').length,d=cab-at;reb=kp('No rebanho',at.toLocaleString('pt-BR'),d===0?'confere com os pastos':'pastos somam '+Math.abs(d).toLocaleString('pt-BR')+(d>0?' a mais':' a menos'),d===0?'':'alerta')}
+ $('#lk').innerHTML=kp('Animais nos pastos',cab.toLocaleString('pt-BR'),oc.length+' pasto'+(oc.length===1?'':'s')+' ocupado'+(oc.length===1?'':'s'),'hi')+kp('Peso médio',comArr?nArr(arrT/comArr)+' @':'–',comArr?nf(arrT/comArr*30,0)+' kg por animal':'informe a @ dos pastos')+kp('Lotação',areaT?nf(uaA/areaT,2)+' UA/ha':'–',nf(uaT,0)+' UA no total')+reb;
+ const av=lotAvisos();
+ $('#lot-aviso').innerHTML=av.length?'<div class="card lotav"><h3 class="sub">Mudou no cocho · confira</h3>'+av.map(x=>'<div class="rowl"><span class="d">'+fd(x.d).slice(0,5)+'</span><span><b>'+esc(x.pasto)+'</b>: '+nf(+x.ant,0)+' → '+nf(+x.cab,0)+' cabeças<span class="sub2">'+(x.resp?esc(x.resp)+' · ':'')+'no trato do cocho'+(x.arr?' · '+nArr(x.arr)+' @':'')+'</span></span><span></span><button type="button" class="btn sm" data-lotok="'+esc(x.id)+'">Ciente</button></div>').join('')+'</div>':'';
+ $('#lot-tt').textContent='Animais por pasto · consumo de '+mlab(m);
+ const lin=L.filter(o=>o.a||PA[o.p]).sort((x,y)=>(!x.a)-(!y.a));  // pastos com número primeiro
+ $('#lott').innerHTML=lin.length?'<table class="pt"><tr><th>Pasto</th><th>Cabeças</th><th>@ média</th><th>UA/ha</th><th>g/cab/dia</th><th>% do peso</th><th>Atualizado</th></tr>'+lin.map(({p,a,ar,c})=>{const ua=a&&a.arr?a.cab*a.arr*30/UA_KG:null;
+  return'<tr><td>'+esc(p)+'</td><td class="av">'+(a?nf(a.cab,0):'<span class="mut">sem contagem</span>')+'</td><td>'+(a&&a.cab?nArr(a.arr):'–')+'</td><td>'+(ua&&ar?nf(ua/ar,2):'–')+'</td><td>'+(c!=null?nf(c,0):'–')+'</td><td>'+(c!=null&&a&&a.arr?nf(c/(a.arr*300),2)+'%':'–')+'</td><td>'+(a?fd(a.d)+'<span class="sub2">'+(a.orig==='manual'?'contagem':'cocho')+(a.resp?' · '+esc(a.resp):'')+'</span>':'–')+'</td></tr>'}).join('')+
+  '<tr class="sm"><td>Total</td><td class="av">'+cab.toLocaleString('pt-BR')+'</td><td>'+(comArr?nArr(arrT/comArr):'–')+'</td><td>'+(areaT?nf(uaA/areaT,2):'–')+'</td><td></td><td></td><td></td></tr></table>':'<p class="mut">Nenhum pasto cadastrado ainda.</p>';
+ if(can('lotacao')){if(!$('#lot-data').value)$('#lot-data').value=today();
+  if(!LOT_SUJO)$('#lotg').innerHTML='<table class="pt"><tr><th>Pasto</th><th>Hoje</th><th>Cabeças</th><th>@ média</th></tr>'+lotPastos().map((p,i)=>{const a=lotAtual(p);return'<tr><td>'+esc(p)+'</td><td class="mut">'+(a?nf(a.cab,0)+(a.cab&&a.arr?' · '+nArr(a.arr)+' @':''):'–')+'</td><td><input class="lotin" data-i="'+i+'" data-k="cab" inputmode="numeric" value="'+(a?a.cab:'')+'" aria-label="Cabeças no '+esc(p)+'"></td><td><input class="lotin" data-i="'+i+'" data-k="arr" inputmode="decimal" value="'+(a&&a.arr?String(a.arr).replace('.',','):'')+'" aria-label="@ média no '+esc(p)+'"></td></tr>'}).join('')+'</table>'}
+ const hm=C.lotacao.filter(x=>x.d.slice(0,7)===m&&(x.orig==='manual'||x.ant==null||+x.ant!==+x.cab)).sort((a,b)=>lotOrd(b,a));
+ $('#lot-ht').textContent='Mudanças de '+mlab(m);
+ $('#lotl').innerHTML=hm.length?hm.map(x=>'<div class="rowl"><span class="d">'+fd(x.d).slice(0,5)+'</span><span><b>'+esc(x.pasto)+'</b> <span class="pill">'+(x.orig==='manual'?'contagem':'cocho')+'</span><span class="sub2">'+(x.ant!=null?nf(+x.ant,0)+' → ':'')+nf(+x.cab,0)+' cabeças'+(x.arr?' · '+nArr(x.arr)+' @':'')+(x.resp?' · '+esc(x.resp):'')+(x.visto?' · conferido por '+esc(x.visto):'')+'</span></span><span class="q">'+nf(+x.cab,0)+' cab</span>'+(can('lotacao')?'<button type="button" class="x" data-del="lotacao/'+esc(x.id)+'">Excluir</button>':'<span></span>')+'</div>').join(''):'<p class="mut">Nenhuma mudança em '+mlab(m)+'.</p>'}
+{const f1=supDraw;supDraw=function(){f1();lotDraw();lotTopo()}}
+// aviso no topo do app para ISM e proprietário quando o número de um pasto mudou pelo cocho
+function lotTopo(){let e=$('#lot-aviso-geral');if(!can('lotacao')||!ISM.mod('suplemento')){if(e)e.remove();return}const a=lotAvisos();
+ if(!e){e=document.createElement('button');e.type='button';e.id='lot-aviso-geral';e.className='mqgeral';e.onclick=()=>{SP='lot';go('sup');window.scrollTo(0,0)};const m=document.querySelector('main');m.insertBefore(e,m.firstChild)}
+ e.hidden=!a.length||(VIEW==='sup'&&SP==='lot');e.textContent=a.length?'⚠ Animais por pasto: '+a.map(x=>x.pasto+' '+x.ant+' → '+x.cab).join(' · ')+'. Toque para conferir.':''}
+document.addEventListener('input',e=>{if(e.target.classList&&e.target.classList.contains('lotin'))LOT_SUJO=true});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-lotok]');if(!b||!can('lotacao'))return;const x=C.lotacao.find(y=>y.id===b.dataset.lotok);if(!x)return;
+ if(!certeza('Marcar como conferido: '+x.pasto+' passou de '+x.ant+' para '+x.cab+' cabeças?'))return;putC('lotacao',{...x,visto:USER.n});msg('Conferido.');supDraw()});
+$('#flot').onsubmit=e=>{e.preventDefault();if(!canW()||!can('lotacao'))return;const d=$('#lot-data').value;if(!d)return msg('Informe a data da contagem.');
+ const ps=lotPastos(),v={};document.querySelectorAll('.lotin').forEach(i=>{(v[i.dataset.i]=v[i.dataset.i]||{})[i.dataset.k]=i.value.trim()});
+ const novos=[];for(const i in v){const p=ps[+i],a=lotAtual(p),s=v[i];if(s.cab===''&&!a)continue;const cab=s.cab===''?NaN:num(s.cab),arr=s.arr===''?null:num(s.arr);
+  if(isNaN(cab)||cab<0||cab%1)return msg('Cabeças do '+p+': digite um número inteiro (0 se o pasto estiver vazio).');
+  if(cab>0&&!(arr>0&&arr<100))return msg('Informe a @ média aproximada do '+p+'.');
+  if(a&&+a.cab===cab&&(cab===0||+a.arr===arr))continue;novos.push({p,a,cab,arr:cab?arr:null})}
+ if(!novos.length)return msg('Nenhum pasto mudou.');
+ if(!certeza('Salvar a contagem de '+fd(d)+'?\n'+novos.map(o=>o.p+': '+(o.a?o.a.cab+' → ':'')+o.cab+' cabeças'+(o.arr?' · '+nArr(o.arr)+' @':'')).join('\n')))return;
+ novos.forEach((o,k)=>putC('lotacao',{id:uid(),d,pasto:o.p,cab:o.cab,arr:o.arr,orig:'manual',resp:USER.n,t:Date.now()+k,ant:o.a?o.a.cab:null}));
+ LOT_SUJO=false;msg('Contagem salva: '+novos.length+' pasto'+(novos.length>1?'s':'')+'.');supDraw()};
 /* ============ PASTOS E MAPA ============ */
 const slug=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)||uid();
 const pastos=()=>C.pastos.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR',{numeric:true}));
@@ -654,7 +716,7 @@ function applyPerms(){
  document.querySelectorAll('#nav button').forEach(b=>b.hidden=!NAVP[b.dataset.v]());
  const n=[...document.querySelectorAll('#nav button')].filter(b=>!b.hidden).length;$('#nav').style.setProperty('--nav-n',n);
  document.querySelectorAll('[data-perm]').forEach(e=>e.hidden=!e.dataset.perm.split('|').some(k=>can(k)));
- ST.splice(0,ST.length,...[['fab','Fábrica de ração'],['coc','Cocho'],['pre','Preço das dietas']].filter(([k])=>can(k=='fab'?'fabrica':k=='pre'?'importar':'cocho')));if(!ST.some(s=>s[0]===SP)&&ST.length)SP=ST[0][0];
+ ST.splice(0,ST.length,...[['fab','Fábrica de ração'],['coc','Cocho'],['lot','Animais por pasto'],['pre','Preço das dietas']].filter(([k])=>can(k=='fab'?'fabrica':k=='pre'?'importar':'cocho')));if(!ST.some(s=>s[0]===SP)&&ST.length)SP=ST[0][0];
  const tat=!can('atv_todas');$('#atv-ne').disabled=tat;$('#atv-ne').closest('.chip').hidden=tat;
  $('#uchip').innerHTML='<b>'+esc(USER.n)+'</b><span>'+esc(USER.r.join(' + '))+'</span><button type="button" id="utroca">Conta</button><span id="sincst" class="sincst">…</span>';
  document.querySelectorAll('[data-resp]').forEach(s=>{if([...s.options].some(o=>o.value===USER.n))s.value=USER.n});

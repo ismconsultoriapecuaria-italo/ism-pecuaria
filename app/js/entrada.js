@@ -272,7 +272,7 @@
     const pode = k => P.user.r.some(r => (P.perm[k] || []).includes(r)) || (P.user.x || []).includes(k);
     const tabelas = ['painel', 'pastos', 'importacoes'];
     if (pode('rebanho') || pode('manejo') || pode('importar')) tabelas.push('romaneios', 'animais', 'pesagens', 'vendas', 'vendas_valor', 'romaneio_valores', 'animais_valor', 'mortes', 'sanitario');
-    if (pode('cocho')) tabelas.push('supl_fabrica', 'supl_cocho');
+    if (pode('cocho')) tabelas.push('supl_fabrica', 'supl_cocho', 'pastos_lotacao');
     tabelas.push('atividades');
     if (pode('fin_ver')) tabelas.push('financeiro');
     if (pode('maquinas')) tabelas.push('maquinas', 'maquinas_horas', 'maquinas_manutencao');   // fotos: só sob demanda

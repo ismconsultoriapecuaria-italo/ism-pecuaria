@@ -266,6 +266,20 @@ caso('vaqueiro não lança horas', 'genisval', ins_h('current_date'), 'erro', aa
 caso('administrativo não vê o maquinário', 'josiane', conta('maquinas_horas') + " union all select count(*) from public.maquinas", 0)
 caso('o outro Wemerson (serviços gerais) não vê', 'francisco', conta('maquinas'), 0, aal='aal1')
 
+print('--- Animais por pasto (migração 013)')
+ins_lot = lambda orig, cab=120: f"insert into public.pastos_lotacao (cliente_id,chave,data,pasto,cabecas,arroba,origem) values ({B},'l-{orig}',current_date,'Pasto 1',{cab},15.5,'{orig}') returning 1"
+caso('vaqueiro informa o número junto com o trato', 'genisval', ins_lot('cocho'), 1, aal='aal1')
+caso('vaqueiro não faz contagem pasto a pasto', 'genisval', ins_lot('manual'), 'erro', aal='aal1')
+caso('vaqueiro não corrige nem marca ciente', 'italo', ins_lot('cocho') + ";" + troca('genisval', 'aal1') + "with u as (update public.pastos_lotacao set extra='{\"visto\":\"x\"}' returning 1) select count(*) from u", 0)
+caso('serviços gerais informa no trato', 'francisco', ins_lot('cocho'), 1, aal='aal1')
+caso('administrativo não faz contagem', 'josiane', ins_lot('manual'), 'erro')
+caso('proprietário faz contagem pasto a pasto', 'wilmington', ins_lot('manual'), 1)
+caso('ISM faz contagem pasto a pasto', 'italo', ins_lot('manual'), 1)
+caso('proprietário marca ciente', 'wilmington', ins_lot('cocho') + "; update public.pastos_lotacao set extra='{\"visto\":\"Wilmington\"}' returning 1", 1)
+caso('cabeças negativas são recusadas', 'italo', ins_lot('manual', -1), 'erro')
+caso('vaqueiro vê os números dos pastos', 'italo', ins_lot('manual') + ";" + troca('genisval', 'aal1') + conta('pastos_lotacao'), 1)
+caso('outra fazenda não vê', 'italo', ins_lot('manual') + ";" + troca('estranho', 'aal1') + conta('pastos_lotacao'), 0)
+
 print('--- Funções de administração fechadas (migração 010)')
 caso('vaqueiro não consegue se dar o perfil ISM', 'genisval', "select public.vincular_usuario('genisval@barramas.ism','Fazenda Barramas','Genisval','x','{ISM}')", 'erro', aal='aal1')
 caso('proprietário não bloqueia ninguém por função de administração', 'wilmington', "select public.bloquear_usuario('Fazenda Barramas','Josiane')", 'erro')

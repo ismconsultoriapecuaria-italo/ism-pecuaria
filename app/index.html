@@ -179,6 +179,9 @@ input.big{font:600 30px/1 var(--f-m);min-height:62px;padding:10px 14px}
 /* maquinário */
 .mqfoto{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
 .mqfoto img{width:120px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.kpi.alerta{border-color:var(--inv)}.kpi.alerta i{color:var(--inv);font-weight:600}
+.lotav{border-color:var(--inv);border-left:4px solid var(--inv)}
+.lotin{width:7em;max-width:100%;padding:6px 8px;font:inherit;border:1px solid var(--line);border-radius:8px;background:var(--card);color:inherit}
 .mqal{border-radius:var(--r);padding:10px 12px;font-weight:600;margin-bottom:8px;border:1px solid var(--line)}
 .mqal.aviso{background:#fdf1dc;color:#7a4a00;border-color:#e6c58a}
 .mqal.erro{background:#fbe5e1;color:#8a2a1c;border-color:#e8b3a8}
@@ -532,7 +535,7 @@ label.btn{color:var(--acc-ink)}
  <div id="s-coc" class="view">
   <form id="fcoc" class="card">
    <p class="eyebrow">Trato</p><h2 class="ct">Suplemento no cocho</h2>
-   <p class="hint">Escolha o pasto, o suplemento e quantos quilos foram colocados. Data, suplemento e responsável ficam marcados para o próximo lançamento.</p>
+   <p class="hint">Escolha o pasto, o suplemento e quantos quilos foram colocados. Informe também quantos animais estão no pasto e o peso médio aproximado (@). Data, suplemento e responsável ficam marcados para o próximo lançamento.</p>
    <div class="fg">
     <div class="f"><label for="coc-data">Data</label><input id="coc-data" type="date" name="data" required></div>
     <div class="f"><label for="coc-pasto">Pasto</label><select id="coc-pasto" name="pasto"></select></div>
@@ -541,6 +544,8 @@ label.btn{color:var(--acc-ink)}
     <div class="f"><label for="coc-resp">Responsável</label><select id="coc-resp" name="resp" data-resp></select></div>
    </div>
    <div class="inl" id="coc-new" hidden><div class="f"><label for="np-nome">Nome do novo pasto</label><input id="np-nome"></div><div class="f"><label for="np-area">Área (ha)</label><input id="np-area" inputmode="decimal"></div><button class="btn sm" type="button" id="np-add">Cadastrar</button></div>
+   <div class="fg"><div class="f"><label for="coc-cab">Animais no pasto (cabeças)</label><input id="coc-cab" name="cab" inputmode="numeric" autocomplete="off"></div><div class="f"><label for="coc-arr">Peso médio aproximado (@ por animal)</label><input id="coc-arr" name="arr" inputmode="decimal" autocomplete="off"></div></div>
+   <p class="lastt" id="coc-lh"></p>
    <fieldset><legend>Como estava o cocho antes do trato?</legend><div class="yn"><label class="chip"><input type="radio" id="coc-cl" name="estado" value="Limpo"><span>Limpo</span></label><label class="chip"><input type="radio" id="coc-cs" name="estado" value="Sobrou"><span>Sobrou</span></label></div></fieldset>
    <div class="f" style="margin-top:12px"><label for="coc-kg">Quantidade no cocho (kg)</label><input id="coc-kg" name="kg" class="big" inputmode="decimal" autocomplete="off"></div>
    <p class="lastt" id="coc-h"></p>
@@ -549,6 +554,19 @@ label.btn{color:var(--acc-ink)}
   <div class="kpis" id="ck"></div>
   <div class="card"><h3 class="sub" id="coc-rt">Resumo por pasto</h3><div class="tw" id="cocr"></div></div>
   <div class="card"><h3 class="sub">Lançamentos do mês</h3><div class="list" id="cocl"></div></div>
+ </div>
+ <div id="s-lot" class="view">
+  <div id="lot-aviso"></div>
+  <div class="kpis" id="lk"></div>
+  <div class="card"><h3 class="sub" id="lot-tt">Animais por pasto</h3><p class="hint">Número atual de cada pasto: o último informado no cocho ou na contagem. Consumo = kg no cocho ÷ cabeças ÷ dias até o trato seguinte. UA = 450 kg de peso vivo.</p><div class="tw" id="lott"></div></div>
+  <form id="flot" class="card" data-perm="lotacao">
+   <p class="eyebrow">Só ISM e proprietário</p><h2 class="ct">Contagem pasto a pasto</h2>
+   <p class="hint">Mude só os pastos que mudaram. Pasto vazio: 0 cabeças. O número vale a partir da data da contagem.</p>
+   <div class="fg"><div class="f"><label for="lot-data">Data da contagem</label><input id="lot-data" type="date" name="data"></div></div>
+   <div class="tw" id="lotg"></div>
+   <button class="btn wide">Salvar contagem</button>
+  </form>
+  <div class="card"><h3 class="sub" id="lot-ht">Mudanças do mês</h3><div class="list" id="lotl"></div></div>
  </div>
  <div id="s-pre" class="view">
  <form id="fpre" class="card" data-perm="importar">
