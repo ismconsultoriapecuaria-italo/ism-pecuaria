@@ -11,7 +11,7 @@ const lab=m=>mn[+m.slice(5)-1]+"/"+m.slice(2,4),fl=m=>mn[+m.slice(5)-1].toUpperC
 const fm=v=>(v<0?"−":"")+"R$ "+Math.abs(Math.round(v)).toLocaleString("pt-BR");
 const cp=v=>Math.abs(v)>=1e6?(v<0?"−":"")+"R$ "+(Math.abs(v)/1e6).toLocaleString("pt-BR",{maximumFractionDigits:2})+" mi":fm(v);
 const S=(r,a,b)=>r[4].slice(a,b+1).reduce((x,y)=>x+y,0);
-const sm=x=>x.reduce((p,q)=>p+q,0),nf=(v,d)=>v.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d}),r0=v=>v?nf(Math.round(v),0):"–",R0=v=>"R$ "+r0(v),dm=s=>s.split("-").reverse().join("/"),d2=v=>nf(v,2);
+const sm=x=>x.reduce((p,q)=>p+q,0),nf=(v,d)=>v==null||(typeof v==="number"&&isNaN(v))?"–":v.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d}),r0=v=>v?nf(Math.round(v),0):"–",R0=v=>"R$ "+r0(v),dm=s=>s.split("-").reverse().join("/"),d2=v=>nf(v,2);
 const ti=(s,t)=>`<header class="ph"><p class="eyebrow">${s}</p><h2>${t}</h2></header>`,nt=t=>`<p class="note">${t}</p>`;
 const kp=(l,v,u,c)=>`<div class="kpi ${c||''}"><small>${l}</small><b>${v}</b>${u?`<i>${u}</i>`:''}</div>`;
 let PA=null,PB=null;
@@ -96,7 +96,9 @@ const canW=()=>{if(RO){msg('Este acesso é somente leitura.');return false}if(!R
 
 /* ============ REBANHO: utilidades ============ */
 const num=v=>parseFloat(String(v).replace(/\./g,m=>String(v).includes(',')?'':m).replace(',','.'));
-const brl=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const brl=v=>v==null||(typeof v==='number'&&isNaN(v))?'–':v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+// venda lançada pelo vaqueiro fica sem valor até alguém lançar o valor do romaneio (migração 011)
+const temValor=a=>!!a.venda&&a.venda.valor!=null&&!isNaN(a.venda.valor);
 const fd=d=>d?d.split('-').reverse().join('/'):'';
 const days=(a,b)=>Math.max(1,Math.round((new Date(b)-new Date(a))/864e5));
 const gmd=(a,b)=>((b.p-a.p)/days(a.d,b.d)).toFixed(3).replace('.',',');
@@ -142,7 +144,7 @@ function refresh(){
  const gs=at.map(a=>{const p=pts(a);return p.length>1?(p[p.length-1].p-a.ent.p)/days(a.ent.d,p[p.length-1].d):null}).filter(x=>x!=null);
  const CC=CATS.map(c=>{const L=at.filter(a=>catOf(a)===c);return[c,L.length,L.length?sm(L.map(lw))/L.length:0]});
  $('#rkc').innerHTML=READY?CC.map(([c,n,w])=>kp(c,n.toLocaleString('pt-BR'),n?'média '+nf(w,0)+' kg':'nenhum ativo')).join(''):'';
- $('#rk').innerHTML=!READY?kp('Rebanho','…','carregando'):kp('Ativos',at.length.toLocaleString('pt-BR'),'cabeças','hi')+kp('Peso médio',at.length?nf(sm(at.map(lw))/at.length,1)+' kg':'–','último peso dos ativos')+kp('GMD médio',gs.length?nf(sm(gs)/gs.length,3)+' kg/dia':'–','desde a entrada')+kp('Vendidos',vd.length.toLocaleString('pt-BR'),vd.length?(VAL()?brl(sm(vd.map(a=>a.venda.valor))):'cabeças vendidas'):(mo.length?mo.length+' mortes':'nenhuma venda'));
+ $('#rk').innerHTML=!READY?kp('Rebanho','…','carregando'):kp('Ativos',at.length.toLocaleString('pt-BR'),'cabeças','hi')+kp('Peso médio',at.length?nf(sm(at.map(lw))/at.length,1)+' kg':'–','último peso dos ativos')+kp('GMD médio',gs.length?nf(sm(gs)/gs.length,3)+' kg/dia':'–','desde a entrada')+kp('Vendidos',vd.length.toLocaleString('pt-BR'),vd.length?(VAL()?((cv,sv)=>(cv.length?brl(sm(cv.map(a=>+a.venda.valor))):'')+(sv?(cv.length?' · ':'')+sv+' sem valor':''))(vd.filter(temValor),vd.filter(a=>!temValor(a)).length):'cabeças vendidas'):(mo.length?mo.length+' mortes':'nenhuma venda'));
  if(VIEW!=='reb')return;seg('#rseg',RT,RP,k=>{RP=k;refresh()});RT.forEach(([k])=>$('#r-'+k).hidden=k!==RP);
  if(RP==='ani')render();else rrender()}
 
@@ -152,7 +154,7 @@ function opts(id,vals,t){const s=$(id),c=s.value;s.innerHTML='<option value="">'
 function render(){opts('#ff',A.map(a=>a.forn),'Todos');opts('#fl',A.map(a=>a.lote),'Todos');
  const q=$('#q').value.toLowerCase(),F=$('#ff').value,L=$('#fl').value,d1=$('#fd1').value,d2=$('#fd2').value,S=$('#fs').value,T2=$('#ft').value;
  const FC=$('#fcat').value,r=A.filter(a=>(!FC||catOf(a)==FC)&&(a.id+' '+catOf(a)).toLowerCase().includes(q)&&(!F||a.forn==F)&&(!L||a.lote==L)&&(!(d1||d2||T2)||evs(a,T2).some(d=>(!d1||d>=d1)&&(!d2||d<=d2)))&&(!S||sit(a)==S)).sort((x,y)=>+x.id-+y.id);
- LF=r;const vend=sm(r.map(a=>a.venda?a.venda.valor:0));
+ LF=r;const vend=sm(r.map(a=>temValor(a)?+a.venda.valor:0));
  $('#fc').textContent=r.length+' de '+A.length+' animais'+(vend&&VAL()?' · vendido '+brl(vend):'');
  const open=new Set([...document.querySelectorAll('#ls details[open]')].map(d=>d.dataset.id));
  const sh=r.slice(0,LIM);
@@ -210,7 +212,7 @@ function rcols(r){const b=['Brinco',x=>x.id],p=['Peso (kg)',x=>x.p],gp=['GMD ent
  return r.tipo=='Entrada'?[b,p,['Categoria',x=>catPeso(+x.p)]]:r.tipo=='Pesagem'?[b,p,gp,g,...ob]:r.tipo=='Venda'?(VAL()?[b,p,['Valor',x=>brl(x.valor)],gp,g]:[b,p,gp,g]):[b,['Causa',x=>x.causa||''],['Responsável',x=>x.resp||'']]}
 function rrender(){$('#rc').textContent=READY?R.length+' romaneios, pela data, do mais recente para o mais antigo':'';
  const open=new Set([...document.querySelectorAll('#rl details[open]')].map(d=>d.dataset.id));
- $('#rl').innerHTML=!READY?'<div class="empty">Carregando romaneios…</div>':R.slice().sort((x,y)=>y.d.localeCompare(x.d)||y.id-x.id).map(r=>{const c=rcols(r);return '<details class="rm" data-id="'+r.id+'"'+(open.has(String(r.id))?' open':'')+'><summary><span class="rt">'+r.tipo+'<em>'+fd(r.d)+'</em></span><span class="mut">'+r.it.length+' animais'+(VAL()&&['Entrada','Venda'].includes(r.tipo)?(r.val?' · '+brl(r.val.total)+(r.val.parr?' · '+brl(r.val.parr)+'/@':''):' · <b class="semval">sem valor</b>'):'')+'</span></summary><div class="body"><div class="facts">'+rhead(r).concat(ravg(r)).map(h=>'<span>'+h[0]+' <b>'+esc(h[1])+'</b></span>').join('')+'</div>'+fichaHTML(r)+'<details class="det"><summary class="mut">Detalhes por animal (GMD, GPD, valores)</summary><div class="tw"><table class="ft"><tr class="h">'+c.map(k=>'<td>'+k[0]+'</td>').join('')+'</tr>'+r.it.map(x=>'<tr>'+c.map((k,i)=>'<td>'+(i?esc(k[1](x)):tag(x.id))+'</td>').join('')+'</tr>').join('')+'</table></div></details>'+(can('exportar')?'<div class="act" style="display:flex;gap:8px"><button class="btn sm" type="button" data-r="'+r.id+'">Excel</button><button class="btn sm ghost" type="button" data-r="'+r.id+'" data-f="pdf">PDF</button></div>':'')+(can('fin_lancar')&&['Entrada','Venda'].includes(r.tipo)?'<div class="act" style="margin-top:8px"><button class="btn sm" type="button" data-rv="'+r.id+'">'+(r.val?'Corrigir valor da '+(r.tipo=='Entrada'?'compra':'venda'):'Lançar valor da '+(r.tipo=='Entrada'?'compra':'venda'))+'</button></div>':'')+(podeCorrRom(r)?'<div class="act" style="margin-top:8px"><button class="btn sm ghost" type="button" data-er="'+r.id+'">Editar romaneio</button></div>':'')+'</div></details>'}).join('')||'<div class="empty"><b>Nenhum romaneio ainda</b>Os romaneios aparecem aqui conforme você lança entradas, pesagens, vendas e mortes.</div>'}
+ $('#rl').innerHTML=!READY?'<div class="empty">Carregando romaneios…</div>':R.slice().sort((x,y)=>String(y.d||'').localeCompare(String(x.d||''))||y.id-x.id).map(r=>{try{const c=rcols(r);return '<details class="rm" data-id="'+r.id+'"'+(open.has(String(r.id))?' open':'')+'><summary><span class="rt">'+r.tipo+'<em>'+fd(r.d)+'</em></span><span class="mut">'+r.it.length+' animais'+(VAL()&&['Entrada','Venda'].includes(r.tipo)?(r.val?' · '+brl(r.val.total)+(r.val.parr?' · '+brl(r.val.parr)+'/@':''):' · <b class="semval">sem valor</b>'):'')+'</span></summary><div class="body"><div class="facts">'+rhead(r).concat(ravg(r)).map(h=>'<span>'+h[0]+' <b>'+esc(h[1])+'</b></span>').join('')+'</div>'+fichaHTML(r)+'<details class="det"><summary class="mut">Detalhes por animal (GMD, GPD, valores)</summary><div class="tw"><table class="ft"><tr class="h">'+c.map(k=>'<td>'+k[0]+'</td>').join('')+'</tr>'+r.it.map(x=>'<tr>'+c.map((k,i)=>'<td>'+(i?esc(k[1](x)):tag(x.id))+'</td>').join('')+'</tr>').join('')+'</table></div></details>'+(can('exportar')?'<div class="act" style="display:flex;gap:8px"><button class="btn sm" type="button" data-r="'+r.id+'">Excel</button><button class="btn sm ghost" type="button" data-r="'+r.id+'" data-f="pdf">PDF</button></div>':'')+(can('fin_lancar')&&['Entrada','Venda'].includes(r.tipo)?'<div class="act" style="margin-top:8px"><button class="btn sm" type="button" data-rv="'+r.id+'">'+(r.val?'Corrigir valor da '+(r.tipo=='Entrada'?'compra':'venda'):'Lançar valor da '+(r.tipo=='Entrada'?'compra':'venda'))+'</button></div>':'')+(podeCorrRom(r)?'<div class="act" style="margin-top:8px"><button class="btn sm ghost" type="button" data-er="'+r.id+'">Editar romaneio</button></div>':'')+'</div></details>'}catch(er){console.error('romaneio '+r.id,er);return '<details class="rm" data-id="'+esc(r.id)+'"><summary><span class="rt">'+esc(r.tipo)+'<em>'+esc(r.d?fd(r.d):'')+'</em></span><span class="mut">'+(r.it?r.it.length+' animais · ':'')+'não foi possível mostrar os detalhes</span></summary></details>'}}).join('')||'<div class="empty"><b>Nenhum romaneio ainda</b>Os romaneios aparecem aqui conforme você lança entradas, pesagens, vendas e mortes.</div>'}
 /* correção da data de um romaneio (ISM, proprietário, administrativo; ou quem lançou) */
 const podeCorrRom=r=>can('corrigir')||(can('manejo')&&(r.info||{}).por===USER.n);
 function corrigirDataRom(r,nd){

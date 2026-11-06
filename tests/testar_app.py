@@ -430,6 +430,31 @@ with sync_playwright() as pw:
     ok(not erros, 'sem erros de tela (animais por pasto) ' + str(erros[:3]))
     b.close()
 
+    # ---------------- Venda lançada pelo vaqueiro sem valor: a lista de romaneios continua aparecendo (06/11/2026) ----------------
+    b, ctx, p, erros = abrir(pw, 'genisval')
+    entrar(p, 'genisval')
+    p.click('#nav button[data-v=man]')
+    brs = p.evaluate("A.filter(a=>!a.venda&&!a.morte).slice(0,2).map(a=>a.id)")
+    p.evaluate("V={d:today(),comp:'Frigorifico Teste',dest:'Abate',resp:USER.n,c:0,t:0,u:[],lin:10}")
+    for br in brs:
+        p.evaluate(f"(()=>{{document.querySelector('#vb').value='{br}';document.querySelector('#vw').value='480';vcalc();vlanca()}})()")
+    ok(esperar(lambda: sql("select count(*) from vendas where comprador='Frigorifico Teste' and excluido_em is null") == '2'), 'vaqueiro lança uma venda de 2 animais, sem valor')
+    ok(not erros, 'sem erros de tela (venda do vaqueiro) ' + str(erros[:3]))
+    b.close()
+    b, ctx, p, erros = abrir(pw, 'italo')
+    entrar(p, 'italo', codigo='123456')
+    ok(esperar(lambda: p.evaluate("R.some(r=>r.tipo==='Venda'&&r.it.some(i=>i.valor===undefined))"), 30), 'Italo recebe a venda ainda sem valor')
+    p.click('#nav button[data-v=reb]'); p.click('#rseg button:has-text("Romaneios")')
+    ok(esperar(lambda: p.evaluate("R.length>0&&document.querySelectorAll('#rl details.rm').length===R.length"), 10), 'com uma venda sem valor, a lista mostra todos os romaneios: ' + str(p.evaluate("[R.length,document.querySelectorAll('#rl details.rm').length]")))
+    ok('não foi possível' not in p.inner_text('#rl'), 'nenhum romaneio fica sem detalhes')
+    rk = p.inner_text('#rk')
+    ok('NaN' not in rk and 'sem valor' in rk, 'quadro Vendidos sem "NaN" e mostrando as vendas sem valor: ' + rk.replace(chr(10), ' | ')[-60:])
+    rid = p.evaluate("String(R.find(r=>r.tipo==='Venda'&&r.it.some(i=>i.valor===undefined)).id)")
+    botao = p.evaluate("rid => (document.querySelector(`[data-rv='${rid}']`) || {}).textContent", rid)
+    ok(botao == 'Lançar valor da venda', 'a venda sem valor mostra "Lançar valor da venda": ' + str(botao))
+    ok(not erros, 'sem erros de tela (lista de romaneios com venda sem valor) ' + str(erros[:3]))
+    b.close()
+
     # ---------------- Fazenda Demonstração ----------------
     subprocess.run(['psql', '-d', BANCO, '-q', '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/migrations/005_fazenda_demonstracao.sql'], capture_output=True)
     subprocess.run(['psql', '-d', BANCO, '-q', '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/migrations/008_painel_ism.sql'], capture_output=True)
